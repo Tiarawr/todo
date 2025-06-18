@@ -4,8 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
-  // 1. ALL STATES (definisikan semua state di atas)
-  const [theme, setTheme] = useState(null);
+  const [theme, setTheme] = useState("light");
   const [mounted, setMounted] = useState(false);
   const [activeFilters, setActiveFilters] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,13 +15,13 @@ export default function Dashboard() {
   const [editingTask, setEditingTask] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [showCustomInput, setShowCustomInput] = useState(false); // Tambah state ini
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const router = useRouter();
-
-  // 2. INITIAL DATA
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
-
+  const handleNavigation = (path) => {
+    router.push(path);
+  };
   const [taskCategories, setTaskCategories] = useState([
     { name: "Personal", color: "#FF5F57", isDefault: false },
     { name: "Freelance", color: "#FEBC2E", isDefault: false },
@@ -130,9 +129,16 @@ export default function Dashboard() {
 
   // 3. USE EFFECTS
   useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") || "light";
-    setTheme(savedTheme);
+    // Optimized theme loading
+    const initTheme = () => {
+      if (typeof window !== "undefined") {
+        const savedTheme = localStorage.getItem("theme") || "light";
+        setTheme(savedTheme);
+        setMounted(true);
+      }
+    };
+
+    initTheme();
 
     const handleThemeChange = (event) => {
       setTheme(event.detail.theme);
@@ -473,13 +479,10 @@ export default function Dashboard() {
     }, {});
 
   // 6. LOADING STATE
-  if (!mounted || theme === null) {
+  if (!mounted) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f67011] mx-auto mb-4"></div>
-          <p className="text-gray-600 font-['Montserrat']">Loading...</p>
-        </div>
+      <div className="w-full h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#febc2e]"></div>
       </div>
     );
   }
@@ -524,7 +527,11 @@ export default function Dashboard() {
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-white opacity-20"></div>
+          <div
+            className={`h-px transition-colors duration-300 ${
+              theme === "dark" ? "bg-white opacity-20" : "bg-gray-300"
+            }`}
+          ></div>
 
           {/* Menu Items */}
           <nav className="space-y-6">
@@ -613,7 +620,7 @@ export default function Dashboard() {
                     }`}
                     onClick={() => setShowAddFilterModal(true)}
                   >
-                    Add filter
+                    Add category
                   </span>
                 </div>
 
@@ -633,42 +640,50 @@ export default function Dashboard() {
             </div>
 
             {/* Schedule Tasks */}
-            <div className="flex items-center space-x-3">
+            <button
+              onClick={() => handleNavigation("/dashboard/schedule")}
+              className="flex items-center space-x-3 group w-full"
+            >
               <div className="w-10 h-10 flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path
                     d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.04 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"
                     fill="#D9D9D9"
+                    className="group-hover:fill-[#FEBC2E] transition-colors duration-300"
                   />
                 </svg>
               </div>
               <span
-                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 ${
+                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 group-hover:text-[#FEBC2E] ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
                 Schedule Tasks
               </span>
-            </div>
+            </button>
 
-            {/* Settings */}
-            <div className="flex items-center space-x-3">
+            {/* Settings - Clickable with proper hover */}
+            <button
+              onClick={() => handleNavigation("/dashboard/settings")}
+              className="flex items-center space-x-3 group"
+            >
               <div className="w-10 h-10 flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path
                     d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"
                     fill="#D9D9D9"
+                    className="group-hover:fill-[#FEBC2E] transition-colors duration-300"
                   />
                 </svg>
               </div>
               <span
-                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 ${
+                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 group-hover:text-[#FEBC2E] ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
                 Settings
               </span>
-            </div>
+            </button>
           </nav>
         </aside>
 
@@ -793,18 +808,19 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-7 gap-1">
-                  {generateCalendarDays().map((date, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        if (date) {
-                          const dateStr = formatDate(date);
-                          setSelectedDate(dateStr);
-                          setShowCalendar(false);
-                        }
-                      }}
-                      disabled={!date}
-                      className={`
+                  {generateCalendarDays().map((date, index) => {
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          if (date) {
+                            const dateStr = formatDate(date);
+                            setSelectedDate(dateStr);
+                            setShowCalendar(false);
+                          }
+                        }}
+                        disabled={!date}
+                        className={`
               text-xs py-2 rounded transition-colors duration-200
               ${!date ? "invisible" : ""}
               ${
@@ -813,15 +829,19 @@ export default function Dashboard() {
                   : "hover:bg-gray-100 dark:hover:bg-gray-700"
               }
               ${
-                date && formatDate(date) === formatDate(new Date())
+                date &&
+                date.getDate() === new Date().getDate() &&
+                date.getMonth() === new Date().getMonth() &&
+                date.getFullYear() === new Date().getFullYear()
                   ? "font-bold border border-[#FEBC2E]"
                   : ""
               }
             `}
-                    >
-                      {date ? date.getDate() : ""}
-                    </button>
-                  ))}
+                      >
+                        {date ? date.getDate() : ""}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -870,7 +890,7 @@ export default function Dashboard() {
               <button
                 key={filter}
                 onClick={() => toggleFilter(filter)}
-                className={`px-5 py-3 rounded-[20px] text-base font-semibold font-['Montserrat'] transition-all duration-300 ${
+                className={`px-5 py-3 rounded-[20px] text-base cursor-pointer font-semibold font-['Montserrat'] transition-all duration-300 ${
                   activeFilters.includes(filter)
                     ? "bg-[#febc2e] text-white"
                     : "bg-[#d9d9d9] text-[#6f6a6a]"

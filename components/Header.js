@@ -37,7 +37,10 @@ export default function Header() {
   const pathname = usePathname();
 
   // Check if user is on dashboard
-  const isDashboard = pathname === "/dashboard";
+  const isDashboard =
+    pathname === "/dashboard" ||
+    pathname === "/dashboard/settings" ||
+    pathname === "/dashboard/schedule";
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleLoginClick = () => {

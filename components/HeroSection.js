@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function HeroSection() {
   const [theme, setTheme] = useState("light");
   const [mounted, setMounted] = useState(false);
+  const router = useRouter(); // Pindahkan ke atas, di dalam component
 
   useEffect(() => {
     setMounted(true);
@@ -26,12 +28,20 @@ export default function HeroSection() {
       window.removeEventListener("themeChange", handleThemeChange);
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, []);
+  }, []); // Remove router dependency karena tidak digunakan di useEffect
+
+  // Fungsi untuk handle login click
+  const handleLoginClick = () => {
+    router.push("/login");
+  };
 
   if (!mounted) {
     return (
       <section className="min-h-screen flex items-center justify-center px-4">
-        <div className="text-center max-w-4xl">Loading...</div>
+        <div className="text-center max-w-4xl">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f4721e] mx-auto mb-4"></div>
+          <p className="text-gray-600 font-['Montserrat']">Loading...</p>
+        </div>
       </section>
     );
   }
@@ -54,7 +64,7 @@ export default function HeroSection() {
       <div className="text-center max-w-4xl relative -mt-8 z-10">
         <div className="space-y-6 md:space-y-0 md:relative md:w-[663px] md:h-[220px] md:mx-auto">
           <h1
-            className={`font-montserrat font-bold transition-colors duration-300 text-2xl sm:text-3xl md:text-[40px] md:absolute md:w-[418px] md:left-[135px] md:top-0 md:text-center ${
+            className={`font-['Montserrat'] font-bold transition-colors duration-300 text-2xl sm:text-3xl md:text-[40px] md:absolute md:w-[418px] md:left-[135px] md:top-0 md:text-center ${
               theme === "dark" ? "text-white" : "text-black"
             }`}
           >
@@ -62,7 +72,7 @@ export default function HeroSection() {
           </h1>
 
           <p
-            className={`font-montserrat font-normal transition-colors duration-300 text-sm sm:text-base md:absolute md:w-[663px] md:h-[26px] md:left-0 md:top-[113px] ${
+            className={`font-['Montserrat'] font-normal transition-colors duration-300 text-sm sm:text-base md:absolute md:w-[663px] md:h-[26px] md:left-0 md:top-[113px] ${
               theme === "dark" ? "text-white/80" : "text-black"
             }`}
           >
@@ -71,7 +81,10 @@ export default function HeroSection() {
           </p>
 
           <div className="pt-4 md:pt-0">
-            <button className="bg-[#f4721e] hover:bg-[#e6651a] hover:scale-105 transition-all duration-300 w-full sm:w-auto px-6 py-3 rounded-[17px] md:absolute md:w-[159px] md:h-12 md:px-[21px] md:py-[9px] md:left-[240px] md:top-[172px] inline-flex justify-center items-center">
+            <button
+              onClick={handleLoginClick} // Gunakan function yang sudah didefinisikan
+              className="bg-[#f4721e] hover:bg-[#e6651a] hover:scale-105 transition-all duration-300 w-full sm:w-auto px-6 py-3 rounded-[17px] md:absolute md:w-[159px] md:h-12 md:px-[21px] md:py-[9px] md:left-[240px] md:top-[172px] inline-flex justify-center items-center"
+            >
               <span className="text-white text-base font-semibold font-montserrat">
                 GET STARTED
               </span>
