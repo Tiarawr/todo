@@ -25,6 +25,10 @@ export default function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
@@ -118,44 +122,30 @@ export default function Register() {
   };
 
   const handleRegisterClick = async () => {
-    const emailInput = document.querySelector('input[type="email"]').value;
-    const fullNameInput = document.querySelector('input[type="text"]').value;
-    const passwordInput = document.querySelector(
-      'input[type="password"]'
-    ).value;
-    const confirmPasswordInput = document.querySelectorAll(
-      'input[type="password"]'
-    )[1].value;
-    const termsCheckbox = document.querySelector(
-      'input[type="checkbox"]'
-    ).checked;
-
     // Validasi
-    if (!fullNameInput.trim())
+    if (!fullName.trim())
       return showToast("Please enter your full name!", "error");
-    if (!emailInput.trim())
+    if (!email.trim())
       return showToast("Please enter your email address!", "error");
-    if (!passwordInput.trim())
-      return showToast("Please enter a password!", "error");
-    if (passwordInput !== confirmPasswordInput)
+    if (!password.trim()) return showToast("Please enter a password!", "error");
+    if (password !== confirmPassword)
       return showToast("Passwords do not match!", "error");
-    if (!termsCheckbox)
+    if (!termsAgreed)
       return showToast("Please agree to the Terms and Conditions!", "warning");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailInput))
+    if (!emailRegex.test(email))
       return showToast("Please enter a valid email address!", "error");
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        emailInput,
-        passwordInput
+        email,
+        password
       );
       await sendEmailVerification(userCredential.user, actionCodeSettings);
 
-      setEmail(emailInput);
-      setMaskedEmail(maskEmail(emailInput));
+      setMaskedEmail(maskEmail(email));
       setShowModal(true);
       showToast("Verification email sent successfully!", "success");
     } catch (error) {
@@ -308,6 +298,8 @@ export default function Register() {
                 <input
                   type="text"
                   placeholder="Full Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   className={`w-full h-12 sm:h-14 px-4 sm:px-6 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
                     theme === "dark"
                       ? "border-[#4285f4] bg-[#1e1e1e] text-white"
@@ -328,7 +320,9 @@ export default function Register() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Password"
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`w-full h-12 sm:h-14 px-4 sm:px-6 pr-12 sm:pr-14 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
                       theme === "dark"
                         ? "border-[#4285f4] bg-[#1e1e1e] text-white"
@@ -392,6 +386,8 @@ export default function Register() {
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`w-full h-12 sm:h-14 px-4 sm:px-6 pr-12 sm:pr-14 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
                       theme === "dark"
                         ? "border-[#4285f4] bg-[#1e1e1e] text-white"
@@ -454,6 +450,8 @@ export default function Register() {
               <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
+                  checked={termsAgreed}
+                  onChange={(e) => setTermsAgreed(e.target.checked)}
                   className="w-4 h-4 mt-1 accent-[#f67011] cursor-pointer flex-shrink-0"
                 />
                 <label className="text-sm font-['Montserrat'] cursor-pointer leading-relaxed">
