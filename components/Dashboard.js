@@ -9,19 +9,30 @@ export default function Dashboard() {
   const [activeFilters, setActiveFilters] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFilterModal, setShowAddFilterModal] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false); // Added
   const [newFilterName, setNewFilterName] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState(""); // Added
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [toast, setToast] = useState({
+    // Added toast state
+    show: false,
+    message: "",
+    type: "error",
+  });
+
   const router = useRouter();
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
+
   const handleNavigation = (path) => {
     router.push(path);
   };
+
   const [taskCategories, setTaskCategories] = useState([
     { name: "Personal", color: "#FF5F57", isDefault: false },
     { name: "Freelance", color: "#FEBC2E", isDefault: false },
@@ -127,14 +138,35 @@ export default function Dashboard() {
     "#DC143C",
   ];
 
-  // 3. USE EFFECTS
+  // Save categories to localStorage whenever they change
   useEffect(() => {
-    // Optimized theme loading
+    if (mounted) {
+      localStorage.setItem("taskCategories", JSON.stringify(taskCategories));
+    }
+  }, [taskCategories, mounted]);
+
+  // Toast function
+  const showToast = (message, type = "error") => {
+    console.log("showToast called:", message, type);
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "error" });
+    }, 3000);
+  };
+
+  // USE EFFECTS
+  useEffect(() => {
     const initTheme = () => {
       if (typeof window !== "undefined") {
         const savedTheme = localStorage.getItem("theme") || "light";
         setTheme(savedTheme);
         setMounted(true);
+
+        // Load categories from localStorage if available
+        const savedCategories = localStorage.getItem("taskCategories");
+        if (savedCategories) {
+          setTaskCategories(JSON.parse(savedCategories));
+        }
       }
     };
 
@@ -163,7 +195,7 @@ export default function Dashboard() {
     };
   }, [showCalendar]);
 
-  // 4. ALL FUNCTIONS (definisikan semua function sebelum digunakan)
+  // ALL FUNCTIONS
   const getAvailableColor = () => {
     const usedColors = taskCategories.map((cat) => cat.color);
     const availableColorOptions = availableColors.filter(
@@ -190,13 +222,14 @@ export default function Dashboard() {
     return category ? category.color : "#FEBC2E";
   };
 
-  const addPredefinedFilter = (name, color) => {
+  // Updated to match ScheduleTask naming
+  const addPredefinedCategory = (name, color) => {
     const existingCategory = taskCategories.find(
       (cat) => cat.name.toLowerCase() === name.toLowerCase()
     );
 
     if (existingCategory) {
-      alert(`Category "${existingCategory.name}" already exists!`);
+      showToast(`Category "${existingCategory.name}" already exists!`);
       return;
     }
 
@@ -207,14 +240,16 @@ export default function Dashboard() {
     };
 
     setTaskCategories((prev) => [...prev, newCategory]);
-    setShowAddFilterModal(false);
+    setShowAddCategoryModal(false);
+    showToast(`Category "${name}" added successfully!`, "success");
   };
 
-  const addCustomFilter = () => {
-    const trimmedName = newFilterName.trim();
+  // Updated to match ScheduleTask naming
+  const addCustomCategory = () => {
+    const trimmedName = newCategoryName.trim();
 
     if (!trimmedName) {
-      alert("Category name cannot be empty!");
+      showToast("Category name cannot be empty!");
       return;
     }
 
@@ -223,42 +258,62 @@ export default function Dashboard() {
     );
 
     if (existingCategory) {
-      alert(`Category "${existingCategory.name}" already exists!`);
-      setNewFilterName(""); // clear input
+      showToast(`Category "${existingCategory.name}" already exists!`);
+      setNewCategoryName("");
       return;
     }
 
     const newCategory = {
-      name: trimmedName, // Keep original case
+      name: trimmedName,
       color: getAvailableColor(),
       isDefault: false,
     };
 
     setTaskCategories((prev) => [...prev, newCategory]);
-    setNewFilterName("");
+    setNewCategoryName("");
     setShowCustomInput(false);
-    setShowAddFilterModal(false);
+    setShowAddCategoryModal(false);
+    showToast(`Category "${trimmedName}" created successfully!`, "success");
+  };
+
+  // Legacy function for backward compatibility
+  const addCustomFilter = () => {
+    addCustomCategory();
+  };
+
+  // Legacy function for backward compatibility
+  const addPredefinedFilter = (name, color) => {
+    addPredefinedCategory(name, color);
   };
 
   const removeFilter = (filterName) => {
-    setTaskCategories((prev) =>
-      prev.filter((cat) => cat.name.toLowerCase() !== filterName.toLowerCase())
+    const categoryToRemove = taskCategories.find(
+      (cat) => cat.name.toLowerCase() === filterName.toLowerCase()
     );
+
+    if (categoryToRemove && !categoryToRemove.isDefault) {
+      setTaskCategories((prev) =>
+        prev.filter(
+          (cat) => cat.name.toLowerCase() !== filterName.toLowerCase()
+        )
+      );
+      showToast(`Category "${filterName}" removed successfully!`, "success");
+    } else {
+      showToast("Cannot remove this category!", "error");
+    }
   };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
-      addCustomFilter(); // Ganti dari addNewFilter ke addCustomFilter
+      addCustomCategory();
     }
   };
 
   const toggleFilter = (filter) => {
     setActiveFilters((prev) => {
       if (prev.includes(filter)) {
-        // Remove filter if already selected
         return prev.filter((f) => f !== filter);
       } else {
-        // Add filter if not selected
         return [...prev, filter];
       }
     });
@@ -268,21 +323,18 @@ export default function Dashboard() {
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
 
-    // 1 year ago from today
     const oneYearAgo = new Date(today);
     oneYearAgo.setFullYear(today.getFullYear() - 1);
     const oneYearAgoStr = oneYearAgo.toISOString().split("T")[0];
 
-    // 2 years ago from today
     const twoYearsAgo = new Date(today);
     twoYearsAgo.setFullYear(today.getFullYear() - 2);
     const twoYearsAgoStr = twoYearsAgo.toISOString().split("T")[0];
 
-    // Get start and end of current week
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+    startOfWeek.setDate(today.getDate() - today.getDay());
     const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
 
     const startOfWeekStr = startOfWeek.toISOString().split("T")[0];
     const endOfWeekStr = endOfWeek.toISOString().split("T")[0];
@@ -299,20 +351,19 @@ export default function Dashboard() {
   const filterTasksBySearch = (tasks) => {
     if (!searchQuery.trim()) return tasks;
 
-    const query = searchQuery.toLowerCase().trim(); // trim spaces
+    const query = searchQuery.toLowerCase().trim();
     return tasks.filter(
       (task) =>
         (task.title && task.title.toLowerCase().includes(query)) ||
         (task.description && task.description.toLowerCase().includes(query)) ||
         (task.time && task.time.toLowerCase().includes(query)) ||
         (task.date && task.date.toLowerCase().includes(query)) ||
-        (task.category && task.category.toLowerCase().includes(query)) // tambah category search
+        (task.category && task.category.toLowerCase().includes(query))
     );
   };
 
   const filterTasksByDate = (tasks) => {
     if (!selectedDate) return tasks;
-
     return tasks.filter((task) => task.sortDate === selectedDate);
   };
 
@@ -327,12 +378,10 @@ export default function Dashboard() {
 
     const days = [];
 
-    // Add empty cells for days before month starts
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
 
-    // Add days of month
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const date = new Date(currentYear, currentMonth, day);
       days.push(date);
@@ -346,26 +395,22 @@ export default function Dashboard() {
   };
 
   const taskMatchesFilters = (task) => {
-    // Cek apakah kategori task masih ada di taskCategories (case-insensitive)
-    if (!task.category) return false; // jika task tidak punya category
+    if (!task.category) return false;
 
     const categoryExists = taskCategories.find(
       (cat) => cat.name.toLowerCase() === task.category.toLowerCase()
     );
 
     if (!categoryExists) {
-      return false; // Jangan tampilkan task jika kategorinya sudah dihapus
+      return false;
     }
 
-    // Apply search filter first (sudah case-insensitive)
     const searchFiltered = filterTasksBySearch([task]);
     if (searchFiltered.length === 0) return false;
 
-    // Apply date filter if selected
     const dateFiltered = filterTasksByDate([task]);
     if (selectedDate && dateFiltered.length === 0) return false;
 
-    // If no filters selected, show all tasks within 1 year
     if (activeFilters.length === 0) {
       const { todayStr, oneYearAgoStr } = getDateRanges();
       return task.sortDate >= oneYearAgoStr;
@@ -378,19 +423,14 @@ export default function Dashboard() {
       switch (filter) {
         case "Today":
           return taskDate === todayStr;
-
         case "This Week":
           return taskDate >= startOfWeekStr && taskDate <= endOfWeekStr;
-
         case "Upcoming":
-          return taskDate > endOfWeekStr; // After this week
-
+          return taskDate > endOfWeekStr;
         case "Completed":
           return task.completed === true;
-
         case "Overdue":
           return taskDate < todayStr && !task.completed;
-
         default:
           return false;
       }
@@ -406,20 +446,20 @@ export default function Dashboard() {
 
   const getTaskBg = (completed) => {
     if (completed) {
-      return "bg-[#fff4ed]"; // completed tasks - light orange background
+      return "bg-[#fff4ed]";
     }
-    return "bg-white"; // pending tasks - white background
+    return "bg-white";
   };
 
   const getTaskTextColor = (completed) => {
-    return "text-black"; // all tasks use black text
+    return "text-black";
   };
 
   const getTaskBorderColor = (completed) => {
     if (completed) {
-      return "border-[#e5e7eb]"; // completed tasks - light gray border
+      return "border-[#e5e7eb]";
     }
-    return "border-black border-2"; // pending tasks - thick black border
+    return "border-black border-2";
   };
 
   const handleTaskAction = (task) => {
@@ -463,7 +503,7 @@ export default function Dashboard() {
     setEditingTask(null);
   };
 
-  // 5. COMPUTE FILTERED DATA
+  // COMPUTE FILTERED DATA
   const filteredTasks = tasks.filter(taskMatchesFilters);
   const autoDeleteTasks = getAutoDeleteTasks();
 
@@ -478,7 +518,7 @@ export default function Dashboard() {
       return acc;
     }, {});
 
-  // 6. LOADING STATE
+  // LOADING STATE
   if (!mounted) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-white">
@@ -487,219 +527,245 @@ export default function Dashboard() {
     );
   }
 
-  // 7. RETURN JSX
+  // RETURN JSX
   return (
     <div
       className={`min-h-screen transition-colors duration-300 ${
         theme === "dark" ? "bg-[#1E1E1E]" : "bg-white"
       }`}
     >
-      <div className="flex flex-col lg:flex-row px-4 md:px-6 lg:px-24 gap-8">
+      <div className="flex flex-col xl:flex-row px-4 sm:px-6 lg:px-8 xl:px-24 gap-4 sm:gap-6 xl:gap-8">
         {/* Sidebar */}
-        <aside className="w-full lg:w-80 space-y-8">
-          {/* Profile Section */}
-          <div className="text-center lg:text-left">
-            <div className="flex flex-col items-center lg:items-start">
-              <div className="relative w-20 h-20 mb-4">
-                <div className="w-20 h-20 bg-[#febc2e] rounded-full relative overflow-hidden">
-                  {/* Avatar illustration */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
-                      {/* Simple face */}
-                      <div className="absolute top-4 left-4 w-2 h-2 bg-[#7C3605] rounded-full"></div>
-                      <div className="absolute top-4 right-4 w-2 h-2 bg-[#7C3605] rounded-full"></div>
-                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-4 h-2 bg-[#7C3605] rounded-full"></div>
+        <aside className="w-full xl:w-80 xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto">
+          <div className="space-y-6 xl:space-y-8 py-4 xl:py-8">
+            {/* Profile Section */}
+            <div className="text-center xl:text-left">
+              <div className="flex flex-col items-center xl:items-start">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-4">
+                  <div className="w-full h-full bg-[#febc2e] rounded-full relative overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
+                        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#7C3605] rounded-full"></div>
+                        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#7C3605] rounded-full"></div>
+                        <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2 w-3 h-1.5 sm:w-4 sm:h-2 bg-[#7C3605] rounded-full"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <h2
-                className={`text-xl font-semibold font-['Montserrat'] mb-1 transition-colors duration-300 ${
-                  theme === "dark" ? "text-white" : "text-black"
-                }`}
-              >
-                Todoriko
-              </h2>
-              <p className="text-[#febc2e] text-sm font-normal font-['Montserrat']">
-                Evan Puertorico
-              </p>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div
-            className={`h-px transition-colors duration-300 ${
-              theme === "dark" ? "bg-white opacity-20" : "bg-gray-300"
-            }`}
-          ></div>
-
-          {/* Menu Items */}
-          <nav className="space-y-6">
-            {/* Today Task */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 flex items-center justify-center">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"
-                      fill="#FEBC2E"
-                    />
-                  </svg>
-                </div>
-                <h3
-                  className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 ${
+                <h2
+                  className={`text-lg sm:text-xl font-semibold font-['Montserrat'] mb-1 transition-colors duration-300 ${
                     theme === "dark" ? "text-white" : "text-black"
                   }`}
                 >
-                  Today Task
-                </h3>
+                  Todoriko
+                </h2>
+                <p className="text-[#febc2e] text-xs sm:text-sm font-normal font-['Montserrat']">
+                  Evan Puertorico
+                </p>
               </div>
+            </div>
 
-              {/* Task Categories */}
-              <div className="space-y-3 ml-13">
-                {taskCategories.map((category) => (
-                  <div
-                    key={category.name}
-                    className="flex items-center justify-between group"
+            {/* Divider */}
+            <div
+              className={`hidden xl:block h-px transition-colors duration-300 ${
+                theme === "dark" ? "bg-white opacity-20" : "bg-gray-300"
+              }`}
+            ></div>
+
+            {/* Menu Items */}
+            <nav className="space-y-4 sm:space-y-6">
+              {/* Today Task */}
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className="sm:w-6 sm:h-6"
+                    >
+                      <path
+                        d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"
+                        fill="#FEBC2E"
+                      />
+                    </svg>
+                  </div>
+                  <h3
+                    className={`text-lg sm:text-xl font-semibold font-['Montserrat'] transition-colors duration-300 ${
+                      theme === "dark" ? "text-white" : "text-black"
+                    }`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      ></div>
-                      <span
-                        className={`text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
+                    Today Task
+                  </h3>
+                </div>
+
+                {/* Task Categories */}
+                <div className="space-y-2 sm:space-y-3 ml-10 sm:ml-13 max-h-40 sm:max-h-none overflow-y-auto">
+                  {taskCategories.map((category) => (
+                    <div
+                      key={category.name}
+                      className="flex items-center justify-between group"
+                    >
+                      <div className="flex items-center space-x-2 sm:space-x-3">
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: category.color }}
+                        ></div>
+                        <span
+                          className={`text-xs sm:text-sm font-medium font-['Montserrat'] transition-colors duration-300 truncate ${
+                            theme === "dark" ? "text-white" : "text-black"
+                          }`}
+                        >
+                          {category.name}
+                        </span>
+                      </div>
+                      {/* Remove button */}
+                      <button
+                        onClick={() => removeFilter(category.name)}
+                        className="opacity-0 group-hover:opacity-100 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center transition-opacity duration-200 hover:bg-red-600 flex-shrink-0"
+                        title={`Remove ${category.name} category`}
+                      >
+                        <svg
+                          width="6"
+                          height="6"
+                          viewBox="0 0 8 8"
+                          fill="none"
+                          className="sm:w-2 sm:h-2"
+                        >
+                          <path
+                            d="M1 1l6 6M1 7l6-6"
+                            stroke="#ffffff"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add filter button */}
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div
+                      className="w-3 h-3 sm:w-4 sm:h-4 flex items-center justify-center transition-colors duration-200 cursor-pointer flex-shrink-0"
+                      onClick={() => setShowAddFilterModal(true)}
+                    >
+                      <svg
+                        width="8"
+                        height="8"
+                        viewBox="0 0 10 10"
+                        fill="none"
+                        className={`sm:w-2.5 sm:h-2.5 ${
                           theme === "dark" ? "text-white" : "text-black"
                         }`}
                       >
-                        {category.name}
-                      </span>
-                    </div>
-                    {/* Remove button - now shows for ALL categories */}
-                    <button
-                      onClick={() => removeFilter(category.name)}
-                      className="opacity-0 group-hover:opacity-100 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center transition-opacity duration-200 hover:bg-red-600"
-                      title={`Remove ${category.name} category`}
-                    >
-                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                         <path
-                          d="M1 1l6 6M1 7l6-6"
-                          stroke="#ffffff"
+                          d="M5 1v8M1 5h8"
+                          stroke="currentColor"
                           strokeWidth="1.5"
                           strokeLinecap="round"
                         />
                       </svg>
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add filter button */}
-                <div className="flex items-center space-x-3">
-                  <div
-                    className="w-4 h-4 flex items-center justify-center transition-colors duration-200 cursor-pointer"
-                    onClick={() => setShowAddFilterModal(true)}
-                  >
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 10 10"
-                      fill="none"
-                      className={theme === "dark" ? "text-white" : "text-black"}
-                    >
-                      <path
-                        d="M5 1v8M1 5h8"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </div>
-                  <span
-                    className={`text-sm font-medium font-['Montserrat'] transition-colors duration-300 cursor-pointer hover:text-[#FEBC2E] ${
-                      theme === "dark" ? "text-gray-300" : "text-gray-600"
-                    }`}
-                    onClick={() => setShowAddFilterModal(true)}
-                  >
-                    Add category
-                  </span>
-                </div>
-
-                {/* Show message when no categories */}
-                {taskCategories.length === 0 && (
-                  <div className="text-center py-4">
-                    <p
-                      className={`text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
-                        theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    </div>
+                    <span
+                      className={`text-xs sm:text-sm font-medium font-['Montserrat'] transition-colors duration-300 cursor-pointer hover:text-[#FEBC2E] ${
+                        theme === "dark" ? "text-gray-300" : "text-gray-600"
                       }`}
+                      onClick={() => setShowAddFilterModal(true)}
                     >
-                      No categories yet. Add your first one!
-                    </p>
+                      Add category
+                    </span>
                   </div>
-                )}
-              </div>
-            </div>
 
-            {/* Schedule Tasks */}
-            <button
-              onClick={() => handleNavigation("/dashboard/schedule")}
-              className="flex items-center space-x-3 group w-full"
-            >
-              <div className="w-10 h-10 flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.04 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"
-                    fill="#D9D9D9"
-                    className="group-hover:fill-[#FEBC2E] transition-colors duration-300"
-                  />
-                </svg>
+                  {/* Show message when no categories */}
+                  {taskCategories.length === 0 && (
+                    <div className="text-center py-4">
+                      <p
+                        className={`text-xs sm:text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      >
+                        No categories yet. Add your first one!
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <span
-                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 group-hover:text-[#FEBC2E] ${
-                  theme === "dark" ? "text-gray-400" : "text-gray-600"
-                }`}
-              >
-                Schedule Tasks
-              </span>
-            </button>
 
-            {/* Settings - Clickable with proper hover */}
-            <button
-              onClick={() => handleNavigation("/dashboard/settings")}
-              className="flex items-center space-x-3 group"
-            >
-              <div className="w-10 h-10 flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"
-                    fill="#D9D9D9"
-                    className="group-hover:fill-[#FEBC2E] transition-colors duration-300"
-                  />
-                </svg>
-              </div>
-              <span
-                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 group-hover:text-[#FEBC2E] ${
-                  theme === "dark" ? "text-gray-400" : "text-gray-600"
-                }`}
+              {/* Schedule Tasks */}
+              <button
+                onClick={() => handleNavigation("/dashboard/schedule")}
+                className="flex items-center space-x-3 group w-full"
               >
-                Settings
-              </span>
-            </button>
-          </nav>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="sm:w-6 sm:h-6"
+                  >
+                    <path
+                      d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.04 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"
+                      fill="#D9D9D9"
+                      className="group-hover:fill-[#FEBC2E] transition-colors duration-300"
+                    />
+                  </svg>
+                </div>
+                <span
+                  className={`text-base sm:text-xl font-semibold font-['Montserrat'] transition-colors duration-300 group-hover:text-[#FEBC2E] ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  Schedule Tasks
+                </span>
+              </button>
+
+              {/* Settings */}
+              <button
+                onClick={() => handleNavigation("/dashboard/settings")}
+                className="flex items-center space-x-3 group"
+              >
+                <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="sm:w-6 sm:h-6"
+                  >
+                    <path
+                      d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"
+                      fill="#D9D9D9"
+                      className="group-hover:fill-[#FEBC2E] transition-colors duration-300"
+                    />
+                  </svg>
+                </div>
+                <span
+                  className={`text-base sm:text-xl font-semibold font-['Montserrat'] transition-colors duration-300 group-hover:text-[#FEBC2E] ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  Settings
+                </span>
+              </button>
+            </nav>
+          </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 space-y-8">
+        <main className="flex-1 space-y-6 sm:space-y-8 pb-8">
           {/* Search Bar */}
           <div className="relative">
             <div
-              className={`flex items-center space-x-4 p-3 rounded-2xl border transition-colors duration-300 ${
+              className={`flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 rounded-2xl border transition-colors duration-300 ${
                 theme === "dark" ? "border-[#4d6080]" : "border-gray-300"
               }`}
             >
-              <div className="flex-1 flex items-center space-x-4">
+              <div className="flex-1 flex items-center space-x-3 sm:space-x-4">
                 {/* Search Icon */}
                 <svg
-                  className="w-6 h-6 text-[#FEBC2E]"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-[#FEBC2E] flex-shrink-0"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -710,7 +776,7 @@ export default function Dashboard() {
                   placeholder="Search tasks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`flex-1 bg-transparent text-2xl font-light font-['Montserrat'] outline-none transition-colors duration-300 ${
+                  className={`flex-1 bg-transparent text-lg sm:text-2xl font-light font-['Montserrat'] outline-none transition-colors duration-300 min-w-0 ${
                     theme === "dark"
                       ? "text-white placeholder-gray-400"
                       : "text-black placeholder-gray-500"
@@ -720,11 +786,11 @@ export default function Dashboard() {
               <div className="flex items-center space-x-2">
                 {/* Calendar Button */}
                 <button
-                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+                  className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200 flex-shrink-0"
                   onClick={() => setShowCalendar(!showCalendar)}
                 >
                   <svg
-                    className="w-6 h-6 text-[#FEBC2E]"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-[#FEBC2E]"
                     fill="none"
                     viewBox="0 0 24 24"
                   >
@@ -777,7 +843,7 @@ export default function Dashboard() {
                 }`}
                 style={{ width: "280px" }}
               >
-                {/* Calendar Header */}
+                {/* Calendar content remains the same */}
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold font-['Montserrat']">
                     {new Date().toLocaleDateString("en-US", {
@@ -795,7 +861,6 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
                     <div
@@ -821,22 +886,22 @@ export default function Dashboard() {
                         }}
                         disabled={!date}
                         className={`
-              text-xs py-2 rounded transition-colors duration-200
-              ${!date ? "invisible" : ""}
-              ${
-                date && formatDate(date) === selectedDate
-                  ? "bg-[#FEBC2E] text-white"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
-              }
-              ${
-                date &&
-                date.getDate() === new Date().getDate() &&
-                date.getMonth() === new Date().getMonth() &&
-                date.getFullYear() === new Date().getFullYear()
-                  ? "font-bold border border-[#FEBC2E]"
-                  : ""
-              }
-            `}
+                          text-xs py-2 rounded transition-colors duration-200
+                          ${!date ? "invisible" : ""}
+                          ${
+                            date && formatDate(date) === selectedDate
+                              ? "bg-[#FEBC2E] text-white"
+                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }
+                          ${
+                            date &&
+                            date.getDate() === new Date().getDate() &&
+                            date.getMonth() === new Date().getMonth() &&
+                            date.getFullYear() === new Date().getFullYear()
+                              ? "font-bold border border-[#FEBC2E]"
+                              : ""
+                          }
+                        `}
                       >
                         {date ? date.getDate() : ""}
                       </button>
@@ -851,31 +916,33 @@ export default function Dashboard() {
           {(searchQuery || selectedDate) && (
             <div className="flex flex-wrap gap-2 items-center">
               <span
-                className={`text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
+                className={`text-xs sm:text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
                 Active filters:
               </span>
               {searchQuery && (
-                <span className="px-3 py-1 bg-blue-500 text-white text-xs font-medium font-['Montserrat'] rounded-full flex items-center space-x-1">
-                  <span>Search: "{searchQuery}"</span>
+                <span className="px-2 sm:px-3 py-1 bg-blue-500 text-white text-xs font-medium font-['Montserrat'] rounded-full flex items-center space-x-1">
+                  <span className="truncate max-w-32">
+                    Search: "{searchQuery}"
+                  </span>
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="ml-1 hover:bg-blue-600 rounded-full w-4 h-4 flex items-center justify-center"
+                    className="ml-1 hover:bg-blue-600 rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0"
                   >
                     ×
                   </button>
                 </span>
               )}
               {selectedDate && (
-                <span className="px-3 py-1 bg-green-500 text-white text-xs font-medium font-['Montserrat'] rounded-full flex items-center space-x-1">
-                  <span>
+                <span className="px-2 sm:px-3 py-1 bg-green-500 text-white text-xs font-medium font-['Montserrat'] rounded-full flex items-center space-x-1">
+                  <span className="truncate">
                     Date: {new Date(selectedDate).toLocaleDateString()}
                   </span>
                   <button
                     onClick={() => setSelectedDate(null)}
-                    className="ml-1 hover:bg-green-600 rounded-full w-4 h-4 flex items-center justify-center"
+                    className="ml-1 hover:bg-green-600 rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0"
                   >
                     ×
                   </button>
@@ -884,39 +951,41 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Filter Buttons */}
-          <div className="flex flex-wrap gap-4">
-            {filters.map((filter) => (
+          {/* Filter Buttons - Scrollable on mobile */}
+          <div className="overflow-x-auto">
+            <div className="flex gap-3 sm:gap-4 pb-2 min-w-max sm:min-w-0 sm:flex-wrap">
+              {filters.map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => toggleFilter(filter)}
+                  className={`px-4 sm:px-5 py-2 sm:py-3 rounded-[20px] text-sm sm:text-base cursor-pointer font-semibold font-['Montserrat'] transition-all duration-300 whitespace-nowrap ${
+                    activeFilters.includes(filter)
+                      ? "bg-[#febc2e] text-white"
+                      : "bg-[#d9d9d9] text-[#6f6a6a]"
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
               <button
-                key={filter}
-                onClick={() => toggleFilter(filter)}
-                className={`px-5 py-3 rounded-[20px] text-base cursor-pointer font-semibold font-['Montserrat'] transition-all duration-300 ${
-                  activeFilters.includes(filter)
+                onClick={() => setActiveFilters([])}
+                className={`px-4 sm:px-5 py-2 sm:py-3 rounded-[20px] text-sm sm:text-base font-semibold font-['Montserrat'] transition-all duration-300 whitespace-nowrap ${
+                  activeFilters.length === 0
                     ? "bg-[#febc2e] text-white"
                     : "bg-[#d9d9d9] text-[#6f6a6a]"
                 }`}
               >
-                {filter}
+                All Tasks
               </button>
-            ))}
-            <button
-              onClick={() => setActiveFilters([])}
-              className={`px-5 py-3 rounded-[20px] text-base font-semibold font-['Montserrat'] transition-all duration-300 ${
-                activeFilters.length === 0
-                  ? "bg-[#febc2e] text-white"
-                  : "bg-[#d9d9d9] text-[#6f6a6a]"
-              }`}
-            >
-              All Tasks
-            </button>
+            </div>
           </div>
 
           {/* Auto-delete Warning */}
           {autoDeleteTasks.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
               <div className="flex items-start space-x-3">
                 <svg
-                  className="w-5 h-5 text-red-500 mt-0.5"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mt-0.5 flex-shrink-0"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -927,10 +996,10 @@ export default function Dashboard() {
                   />
                 </svg>
                 <div className="flex-1">
-                  <h3 className="text-sm font-medium text-red-800 font-['Montserrat']">
+                  <h3 className="text-xs sm:text-sm font-medium text-red-800 font-['Montserrat']">
                     Auto-Delete Notice
                   </h3>
-                  <p className="text-sm text-red-700 font-['Montserrat'] mt-1">
+                  <p className="text-xs sm:text-sm text-red-700 font-['Montserrat'] mt-1">
                     {autoDeleteTasks.length} overdue task
                     {autoDeleteTasks.length > 1 ? "s" : ""} older than 2 years
                     will be automatically deleted to keep your workspace clean.
@@ -944,7 +1013,7 @@ export default function Dashboard() {
           {activeFilters.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <span
-                className={`text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
+                className={`text-xs sm:text-sm font-medium font-['Montserrat'] transition-colors duration-300 ${
                   theme === "dark" ? "text-gray-400" : "text-gray-600"
                 }`}
               >
@@ -953,7 +1022,7 @@ export default function Dashboard() {
               {activeFilters.map((filter) => (
                 <span
                   key={filter}
-                  className="px-3 py-1 bg-[#febc2e] text-white text-xs font-medium font-['Montserrat'] rounded-full"
+                  className="px-2 sm:px-3 py-1 bg-[#febc2e] text-white text-xs font-medium font-['Montserrat'] rounded-full"
                 >
                   {filter}
                 </span>
@@ -963,10 +1032,10 @@ export default function Dashboard() {
 
           {/* Show All Info */}
           {activeFilters.length === 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
               <div className="flex items-start space-x-3">
                 <svg
-                  className="w-5 h-5 text-blue-500 mt-0.5"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 mt-0.5 flex-shrink-0"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -977,10 +1046,10 @@ export default function Dashboard() {
                   />
                 </svg>
                 <div className="flex-1">
-                  <h3 className="text-sm font-medium text-blue-800 font-['Montserrat']">
+                  <h3 className="text-xs sm:text-sm font-medium text-blue-800 font-['Montserrat']">
                     Showing All Tasks
                   </h3>
-                  <p className="text-sm text-blue-700 font-['Montserrat'] mt-1">
+                  <p className="text-xs sm:text-sm text-blue-700 font-['Montserrat'] mt-1">
                     Displaying all tasks from the past year. Tasks older than 2
                     years are automatically archived for better performance.
                   </p>
@@ -990,11 +1059,11 @@ export default function Dashboard() {
           )}
 
           {/* Tasks */}
-          <div className="space-y-12">
+          <div className="space-y-8 sm:space-y-12">
             {Object.entries(groupedTasks).length === 0 ? (
               <div className="text-center py-12">
                 <p
-                  className={`text-lg font-medium font-['Montserrat'] transition-colors duration-300 ${
+                  className={`text-base sm:text-lg font-medium font-['Montserrat'] transition-colors duration-300 ${
                     theme === "dark" ? "text-gray-400" : "text-gray-600"
                   }`}
                 >
@@ -1003,40 +1072,40 @@ export default function Dashboard() {
               </div>
             ) : (
               Object.entries(groupedTasks).map(([date, dateTasks]) => (
-                <div key={date} className="space-y-8">
+                <div key={date} className="space-y-6 sm:space-y-8">
                   {/* Date Header */}
                   <h2
-                    className={`text-xl font-light font-['Montserrat'] transition-colors duration-300 ${
+                    className={`text-lg sm:text-xl font-light font-['Montserrat'] transition-colors duration-300 ${
                       theme === "dark" ? "text-white" : "text-black"
                     }`}
                   >
                     {date}
                   </h2>
 
-                  {/* Tasks Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Tasks Grid - Single column on mobile, 2 columns on larger screens */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     {dateTasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`p-8 rounded-[37px] transition-all duration-300 hover:shadow-lg ${getTaskBg(
+                        className={`p-4 sm:p-6 lg:p-8 rounded-[20px] sm:rounded-[30px] lg:rounded-[37px] transition-all duration-300 hover:shadow-lg ${getTaskBg(
                           task.completed
                         )} ${getTaskBorderColor(task.completed)}`}
                       >
                         {/* Task Header */}
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center space-x-3">
+                        <div className="flex items-start justify-between mb-4 sm:mb-6">
+                          <div className="flex items-start space-x-2 sm:space-x-3 flex-1 min-w-0">
                             {/* Dynamic color based on task category */}
                             <div
-                              className="w-6 h-6 rounded-full"
+                              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded-full flex-shrink-0 mt-1"
                               style={{
                                 backgroundColor: getTaskCategoryColor(
                                   task.category
                                 ),
                               }}
                             ></div>
-                            <div className="flex flex-col">
+                            <div className="flex flex-col min-w-0 flex-1">
                               <h3
-                                className={`text-xl font-semibold font-['Montserrat'] transition-colors duration-300 ${getTaskTextColor(
+                                className={`text-base sm:text-lg lg:text-xl font-semibold font-['Montserrat'] transition-colors duration-300 break-words ${getTaskTextColor(
                                   task.completed
                                 )}`}
                               >
@@ -1053,14 +1122,15 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <button
-                            className="w-7 h-7 flex items-center justify-center cursor-pointer transition-colors duration-200"
+                            className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center cursor-pointer transition-colors duration-200 flex-shrink-0"
                             onClick={() => handleTaskAction(task)}
                           >
                             <svg
-                              width="5"
-                              height="21"
+                              width="4"
+                              height="18"
                               viewBox="0 0 5 21"
                               fill="none"
+                              className="sm:w-1.5 sm:h-5"
                             >
                               <path
                                 d="M2.5 20.1667C1.83542 20.1667 1.26649 19.93 0.793229 19.4568C0.319965 18.9835 0.083333 18.4146 0.083333 17.75C0.083333 17.0854 0.319965 16.5165 0.793229 16.0432C1.26649 15.57 1.83542 15.3333 2.5 15.3333C3.16458 15.3333 3.73351 15.57 4.20677 16.0432C4.68003 16.5165 4.91667 17.0854 4.91667 17.75C4.91667 18.4146 4.68003 18.9835 4.20677 19.4568C3.73351 19.93 3.16458 20.1667 2.5 20.1667ZM2.5 12.9167C1.83542 12.9167 1.26649 12.68 0.793229 12.2068C0.319965 11.7335 0.083333 11.1646 0.083333 10.5C0.083333 9.83542 0.319965 9.26649 0.793229 8.79323C1.26649 8.31997 1.83542 8.08333 2.5 8.08333C3.16458 8.08333 3.73351 8.31997 4.20677 8.79323C4.68003 9.26649 4.91667 9.83542 4.91667 10.5C4.91667 11.1646 4.68003 11.7335 4.20677 12.2068C3.73351 12.68 3.16458 12.9167 2.5 12.9167ZM2.5 5.66667C1.83542 5.66667 1.26649 5.43004 0.793229 4.95677C0.319965 4.48351 0.083333 3.91458 0.083333 3.25C0.083333 2.58542 0.319965 2.01649 0.793229 1.54323C1.26649 1.06997 1.83542 0.833333 2.5 0.833333C3.16458 0.833333 3.73351 1.06997 4.20677 1.54323C4.68003 2.01649 4.91667 2.58542 4.91667 3.25C4.91667 3.91458 4.68003 4.48351 4.20677 4.95677C3.73351 5.43004 3.16458 5.66667 2.5 5.66667Z"
@@ -1071,9 +1141,9 @@ export default function Dashboard() {
                         </div>
 
                         {/* Task Time */}
-                        <div className="mb-4">
+                        <div className="mb-3 sm:mb-4">
                           <span
-                            className={`text-lg font-medium font-['Montserrat'] transition-colors duration-300 ${getTaskTextColor(
+                            className={`text-sm sm:text-base lg:text-lg font-medium font-['Montserrat'] transition-colors duration-300 ${getTaskTextColor(
                               task.completed
                             )}`}
                           >
@@ -1083,7 +1153,7 @@ export default function Dashboard() {
 
                         {/* Task Description */}
                         <p
-                          className={`text-sm font-normal font-['Montserrat'] mb-8 leading-relaxed transition-colors duration-300 ${getTaskTextColor(
+                          className={`text-xs sm:text-sm font-normal font-['Montserrat'] mb-6 sm:mb-8 leading-relaxed transition-colors duration-300 ${getTaskTextColor(
                             task.completed
                           )}`}
                         >
@@ -1093,12 +1163,13 @@ export default function Dashboard() {
                         {/* Task Footer */}
                         <div className="flex justify-end">
                           {task.completed ? (
-                            <div className="w-7 h-7 bg-[#F4721E] rounded flex items-center justify-center">
+                            <div className="w-6 h-6 sm:w-7 sm:h-7 bg-[#F4721E] rounded flex items-center justify-center">
                               <svg
-                                width="20"
-                                height="15"
+                                width="16"
+                                height="12"
                                 viewBox="0 0 20 15"
                                 fill="none"
+                                className="sm:w-4 sm:h-3"
                               >
                                 <path
                                   d="M7.1417 15L0.491699 8.34999L2.1542 6.68749L7.1417 11.675L17.8459 0.970825L19.5084 2.63333L7.1417 15Z"
@@ -1107,7 +1178,7 @@ export default function Dashboard() {
                               </svg>
                             </div>
                           ) : (
-                            <div className="w-7 h-7 bg-[#F4721E] rounded"></div>
+                            <div className="w-6 h-6 sm:w-7 sm:h-7 bg-[#F4721E] rounded"></div>
                           )}
                         </div>
                       </div>
@@ -1123,11 +1194,11 @@ export default function Dashboard() {
       {/* Add Filter Modal - Dropdown Style */}
       {showAddFilterModal && (
         <div
-          className="fixed inset-0 z-50"
+          className="fixed inset-0 z-50 p-4"
           onClick={() => setShowAddFilterModal(false)}
         >
           <div
-            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg p-4 w-80 ${
+            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg p-4 w-full max-w-sm ${
               theme === "dark"
                 ? "bg-[#2D2D2D] text-white"
                 : "bg-white text-black"
@@ -1255,7 +1326,7 @@ export default function Dashboard() {
           onClick={() => setShowCustomInput(false)}
         >
           <div
-            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg p-4 w-80 ${
+            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg p-4 w-full max-w-sm ${
               theme === "dark"
                 ? "bg-[#2D2D2D] text-white"
                 : "bg-white text-black"
@@ -1307,7 +1378,7 @@ export default function Dashboard() {
           onClick={() => setShowTaskModal(false)}
         >
           <div
-            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg p-4 w-64 ${
+            className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-lg shadow-lg p-4 w-full max-w-sm ${
               theme === "dark"
                 ? "bg-[#2D2D2D] text-white"
                 : "bg-white text-black"
@@ -1398,7 +1469,7 @@ export default function Dashboard() {
       {editingTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div
-            className={`rounded-lg shadow-lg p-6 w-96 max-w-md mx-4 ${
+            className={`rounded-lg shadow-lg p-6 w-full max-w-md mx-4 ${
               theme === "dark"
                 ? "bg-[#2D2D2D] text-white"
                 : "bg-white text-black"

@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Register() {
-  const [theme, setTheme] = useState(null); // Set null initially
-  const [mounted, setMounted] = useState(false); // Add mounted state
+  const [theme, setTheme] = useState(null);
+  const [mounted, setMounted] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [email, setEmail] = useState("");
@@ -18,12 +18,10 @@ export default function Register() {
   });
 
   useEffect(() => {
-    // Set mounted and get saved theme
     setMounted(true);
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
 
-    // Listen for theme changes
     const handleThemeChange = (event) => {
       setTheme(event.detail.theme);
     };
@@ -43,7 +41,6 @@ export default function Register() {
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
 
-    // Trigger custom event for theme change
     const event = new CustomEvent("themeChange", {
       detail: { theme: newTheme },
     });
@@ -52,13 +49,11 @@ export default function Register() {
 
   const handleLoginClick = () => {
     setIsAnimating(true);
-
     setTimeout(() => {
       router.push("/login");
     }, 800);
   };
 
-  // Function to mask email
   const maskEmail = (email) => {
     if (!email) return "";
 
@@ -83,7 +78,6 @@ export default function Register() {
     return `${maskedLocal}@${maskedDomain}.${domainExt}`;
   };
 
-  // Tambahkan function showToast setelah state declarations
   const showToast = (message, type = "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -91,7 +85,6 @@ export default function Register() {
     }, 3000);
   };
 
-  // Handle register button click
   const handleRegisterClick = () => {
     const emailInput = document.querySelector('input[type="email"]').value;
     const fullNameInput = document.querySelector('input[type="text"]').value;
@@ -131,31 +124,26 @@ export default function Register() {
       return;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailInput)) {
       showToast("Please enter a valid email address!", "error");
       return;
     }
 
-    // Success - show modal
     setEmail(emailInput);
     setMaskedEmail(maskEmail(emailInput));
     setShowModal(true);
     showToast("Verification email sent successfully!", "success");
   };
 
-  // Handle modal close
   const closeModal = () => {
     setShowModal(false);
   };
 
-  // Handle email input change
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
   };
 
-  // Show loading screen until mounted and theme is loaded
   if (!mounted || theme === null) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-gray-100">
@@ -169,11 +157,11 @@ export default function Register() {
 
   return (
     <div
-      className={`w-full h-screen relative overflow-hidden transition-colors duration-300 ${
+      className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${
         theme === "dark" ? "bg-[#16151a]" : "bg-[#ffffff]"
       }`}
     >
-      {/* Toggle Switch - With Animation */}
+      {/* Toggle Switch - Mobile responsive */}
       <div
         className={`absolute top-4 left-4 z-50 flex items-center gap-2 transition-all duration-800 ease-in-out ${
           isAnimating ? "transform -translate-x-full opacity-0" : ""
@@ -182,214 +170,232 @@ export default function Register() {
         <button
           type="button"
           onClick={toggleTheme}
-          className={`relative w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 cursor-pointer focus:outline-none ${
+          className={`relative w-10 h-5 sm:w-12 sm:h-6 flex items-center rounded-full p-1 transition-colors duration-300 cursor-pointer focus:outline-none ${
             theme === "dark" ? "bg-[#f67011]" : "bg-gray-300"
           }`}
           aria-label="Toggle theme"
         >
           <div
-            className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
-              theme === "dark" ? "translate-x-6" : "translate-x-0"
+            className={`w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
+              theme === "dark"
+                ? "translate-x-5 sm:translate-x-6"
+                : "translate-x-0"
             }`}
           />
         </button>
       </div>
 
-      <div className="w-full h-full flex flex-col lg:flex-row">
-        {/* Left Section - Form */}
-        <div
-          className={`w-full lg:w-1/2 h-[50%] lg:h-full flex flex-col justify-center items-center relative transition-all duration-800 ease-in-out ${
-            isAnimating ? "lg:transform lg:translate-x-full" : ""
-          }`}
-        >
-          <h2
-            className={`text-[28px] lg:text-[32px] font-extrabold font-['Montserrat'] transition-colors duration-300 ${
-              theme === "dark" ? "text-white" : "text-black"
+      {/* Main Container - Fixed: flex-col tanpa reverse */}
+      <div className="flex flex-col xl:flex-row px-4 sm:px-6 lg:px-8 xl:px-24 gap-4 sm:gap-6 xl:gap-8">
+        {/* Branding Section - Mobile: Atas, Desktop: Kanan */}
+        <aside className="w-full xl:w-1/2 xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto">
+          <div
+            className={`min-h-[40vh] xl:min-h-screen relative flex flex-col justify-center items-center py-8 xl:py-0 transition-all duration-800 ease-in-out ${
+              isAnimating ? "xl:transform xl:-translate-x-full" : ""
             }`}
           >
-            Register
-          </h2>
+            {/* Background Gradient */}
+            <div
+              className={`absolute inset-0 transition-colors duration-300 ${
+                theme === "dark"
+                  ? "bg-gradient-to-b from-[#e8d9ca] to-[#f4721e]/80"
+                  : "bg-gradient-to-b from-[#f0f0f0] to-[#f4721e]/80"
+              }`}
+            />
 
-          {/* Logo Google dan Facebook */}
-          <div className="flex gap-4 mt-4">
-            <div className="group cursor-pointer">
-              <img
-                src="/Google.svg"
-                alt="Google Logo"
-                className="w-12 h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
-              />
-            </div>
-            <div className="group cursor-pointer">
-              <img
-                src="/Facebook.svg"
-                alt="Facebook Logo"
-                className="w-12 h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
-              />
-            </div>
-          </div>
-
-          <div className="w-full max-w-md mt-8">
-            <div className="flex items-center justify-between">
-              <div className="w-[30%] h-[1px] bg-gray-400"></div>
-              <p
-                className={`text-base font-normal font-['Montserrat'] transition-colors duration-300 ${
+            {/* Content */}
+            <div className="relative z-10 text-center px-4 sm:px-6 xl:px-8">
+              <h1
+                className={`text-3xl sm:text-4xl xl:text-5xl font-black font-['Montserrat'] transition-colors duration-300 mb-2 sm:mb-4 ${
                   theme === "dark" ? "text-white" : "text-black"
                 }`}
               >
-                Or register with email
+                Todoriko
+              </h1>
+              <p
+                className={`text-sm sm:text-base font-bold font-['Montserrat'] transition-colors duration-300 ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
+              >
+                Your personal tracker
               </p>
-              <div className="w-[30%] h-[1px] bg-gray-400"></div>
-            </div>
-            <div className="mt-8 space-y-4">
-              <input
-                type="text"
-                placeholder="Full Name"
-                className={`w-full h-12 px-4 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 ${
-                  theme === "dark"
-                    ? "border-[#4285f4] bg-[#1e1e1e] text-white"
-                    : "border-[#4285f4] bg-white text-black"
-                }`}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                onChange={handleEmailChange}
-                className={`w-full h-12 px-4 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 ${
-                  theme === "dark"
-                    ? "border-[#4285f4] bg-[#1e1e1e] text-white"
-                    : "border-[#4285f4] bg-white text-black"
-                }`}
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                className={`w-full h-12 px-4 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 ${
-                  theme === "dark"
-                    ? "border-[#4285f4] bg-[#1e1e1e] text-white"
-                    : "border-[#4285f4] bg-white text-black"
-                }`}
-              />
-              <input
-                type="password"
-                placeholder="Confirm Password"
-                className={`w-full h-12 px-4 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 ${
-                  theme === "dark"
-                    ? "border-[#4285f4] bg-[#1e1e1e] text-white"
-                    : "border-[#4285f4] bg-white text-black"
-                }`}
-              />
             </div>
 
-            {/* Terms and Conditions */}
-            <div className="flex items-center mt-4">
-              <label className="flex items-center gap-2 text-sm font-['Montserrat'] transition-colors duration-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 accent-[#f67011] cursor-pointer"
-                />
-                <span
-                  className={`transition-colors duration-300 ${
+            {/* Character Image */}
+            <div className="relative z-10 mt-4 xl:mt-8">
+              <img
+                src="/Register.svg"
+                alt="Register Character"
+                className="w-32 h-32 sm:w-48 sm:h-48 xl:w-80 xl:h-80 2xl:w-96 2xl:h-96 transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+          </div>
+        </aside>
+
+        {/* Form Section - Mobile: Bawah, Desktop: Kiri */}
+        <main className="flex-1 space-y-6 sm:space-y-8 pb-8">
+          <div
+            className={`min-h-[60vh] xl:min-h-screen flex flex-col justify-center items-center py-8 xl:py-0 transition-all duration-800 ease-in-out ${
+              isAnimating ? "xl:transform xl:translate-x-full" : ""
+            }`}
+          >
+            <div className="w-full max-w-md space-y-6 sm:space-y-8">
+              {/* Title */}
+              <h2
+                className={`text-2xl sm:text-3xl xl:text-[32px] font-extrabold font-['Montserrat'] text-center transition-colors duration-300 ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
+              >
+                Register
+              </h2>
+
+              {/* Social Login */}
+              <div className="flex justify-center gap-4 sm:gap-6">
+                <div className="group cursor-pointer">
+                  <img
+                    src="/Google.svg"
+                    alt="Google Logo"
+                    className="w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
+                  />
+                </div>
+                <div className="group cursor-pointer">
+                  <img
+                    src="/Facebook.svg"
+                    alt="Facebook Logo"
+                    className="w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center justify-center space-x-4">
+                <div className="flex-1 h-px bg-gray-400"></div>
+                <p
+                  className={`text-sm sm:text-base font-normal font-['Montserrat'] whitespace-nowrap px-2 transition-colors duration-300 ${
                     theme === "dark" ? "text-white" : "text-black"
                   }`}
                 >
-                  I agree to the{" "}
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/tnc?theme=${theme}`)}
-                    className="text-[#f67011] hover:underline"
+                  Or register with email
+                </p>
+                <div className="flex-1 h-px bg-gray-400"></div>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  className={`w-full h-12 sm:h-14 px-4 sm:px-6 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
+                    theme === "dark"
+                      ? "border-[#4285f4] bg-[#1e1e1e] text-white"
+                      : "border-[#4285f4] bg-white text-black"
+                  }`}
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  onChange={handleEmailChange}
+                  className={`w-full h-12 sm:h-14 px-4 sm:px-6 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
+                    theme === "dark"
+                      ? "border-[#4285f4] bg-[#1e1e1e] text-white"
+                      : "border-[#4285f4] bg-white text-black"
+                  }`}
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  className={`w-full h-12 sm:h-14 px-4 sm:px-6 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
+                    theme === "dark"
+                      ? "border-[#4285f4] bg-[#1e1e1e] text-white"
+                      : "border-[#4285f4] bg-white text-black"
+                  }`}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm Password"
+                  className={`w-full h-12 sm:h-14 px-4 sm:px-6 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
+                    theme === "dark"
+                      ? "border-[#4285f4] bg-[#1e1e1e] text-white"
+                      : "border-[#4285f4] bg-white text-black"
+                  }`}
+                />
+              </div>
+
+              {/* Terms and Conditions */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 mt-1 accent-[#f67011] cursor-pointer flex-shrink-0"
+                />
+                <label className="text-sm font-['Montserrat'] cursor-pointer leading-relaxed">
+                  <span
+                    className={`transition-colors duration-300 ${
+                      theme === "dark" ? "text-white" : "text-black"
+                    }`}
                   >
-                    Terms and Conditions
-                  </button>
+                    I agree to the{" "}
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/tnc?theme=${theme}`)}
+                      className="text-[#f67011] hover:underline"
+                    >
+                      Terms and Conditions
+                    </button>
+                  </span>
+                </label>
+              </div>
+
+              {/* Register Button */}
+              <button
+                type="button"
+                onClick={handleRegisterClick}
+                className="w-full h-12 sm:h-14 bg-[#f67011] hover:bg-[#e6651a] text-white rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300 text-sm sm:text-base"
+              >
+                Register
+              </button>
+
+              {/* Login Link */}
+              <div className="text-center">
+                <span
+                  className={`text-sm sm:text-base font-light font-['Montserrat'] transition-colors duration-300 ${
+                    theme === "dark" ? "text-[#d9d9d9]" : "text-gray-600"
+                  }`}
+                >
+                  Already have an account?{" "}
                 </span>
-              </label>
+                <span
+                  onClick={handleLoginClick}
+                  className="text-[#f67011] text-sm sm:text-base font-light font-['Montserrat'] cursor-pointer hover:underline transition-all duration-300"
+                >
+                  Login
+                </span>
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleRegisterClick}
-              className="w-full h-12 mt-8 bg-[#f67011] hover:bg-[#e6651a] text-white rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300"
-            >
-              Register
-            </button>
           </div>
-          <div className="mt-4">
-            <span
-              className={`text-base font-light font-['Montserrat'] transition-colors duration-300 ${
-                theme === "dark" ? "text-[#d9d9d9]" : "text-gray-600"
-              }`}
-            >
-              Already have an account?{" "}
-            </span>
-            <span
-              onClick={handleLoginClick}
-              className="text-[#f67011] text-base font-light font-['Montserrat'] cursor-pointer hover:underline transition-all duration-300"
-            >
-              Login
-            </span>
-          </div>
-        </div>
-
-        {/* Right Section - Branding */}
-        <div
-          className={`w-full lg:w-1/2 h-[50%] lg:h-full relative transition-all duration-800 ease-in-out ${
-            isAnimating ? "lg:transform lg:-translate-x-full" : ""
-          }`}
-        >
-          <div
-            className={`absolute inset-0 transition-colors duration-300 ${
-              theme === "dark"
-                ? "bg-gradient-to-b from-[#e8d9ca] to-[#f4721e]/80"
-                : "bg-gradient-to-b from-[#f0f0f0] to-[#f4721e]/80"
-            }`}
-          />
-          <div className="absolute left-[10%] top-[20%] lg:left-[33%] lg:top-[25%] text-center">
-            <h1
-              className={`text-4xl lg:text-5xl font-black font-['Montserrat'] transition-colors duration-300 ${
-                theme === "dark" ? "text-white" : "text-black"
-              }`}
-            >
-              Todoriko
-            </h1>
-            <p
-              className={`mt-4 text-base font-bold font-['Montserrat'] transition-colors duration-300 ${
-                theme === "dark" ? "text-white" : "text-black"
-              }`}
-            >
-              Your personal tracker
-            </p>
-          </div>
-
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 mb-4">
-            <img
-              src="/Register.svg"
-              alt="Register Character"
-              className="w-48 h-48 lg:w-96 lg:h-96 transition-transform duration-300 hover:scale-105"
-            />
-          </div>
-        </div>
+        </main>
       </div>
 
-      {/* Verification Modal */}
+      {/* Verification Modal - Mobile responsive */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div
-            className={`relative max-w-md w-full rounded-3xl p-8 shadow-2xl transform transition-all duration-300 scale-100 ${
+            className={`relative w-full max-w-sm sm:max-w-md rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${
               theme === "dark"
                 ? "bg-gradient-to-br from-[#2a2a2a] to-[#1e1e1e] border border-gray-700"
                 : "bg-gradient-to-br from-white to-gray-50 border border-gray-200"
             }`}
           >
-            {/* Close Button */}
+            {/* Modal content remains the same but responsive */}
             <button
               onClick={closeModal}
-              className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
+              className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
                 theme === "dark"
                   ? "hover:bg-gray-700 text-gray-400 hover:text-white"
                   : "hover:bg-gray-100 text-gray-500 hover:text-black"
               }`}
             >
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 sm:w-5 sm:h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -403,11 +409,10 @@ export default function Register() {
               </svg>
             </button>
 
-            {/* Icon */}
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-[#f67011]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="text-center mb-4 sm:mb-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#f67011]/20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <svg
-                  className="w-8 h-8 text-[#f67011]"
+                  className="w-6 h-6 sm:w-8 sm:h-8 text-[#f67011]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -421,14 +426,14 @@ export default function Register() {
                 </svg>
               </div>
               <h3
-                className={`text-2xl font-bold font-['Montserrat'] mb-2 ${
+                className={`text-xl sm:text-2xl font-bold font-['Montserrat'] mb-2 ${
                   theme === "dark" ? "text-white" : "text-black"
                 }`}
               >
                 Verify Your Email
               </h3>
               <p
-                className={`text-base font-normal font-['Montserrat'] ${
+                className={`text-sm sm:text-base font-normal font-['Montserrat'] px-2 ${
                   theme === "dark" ? "text-gray-300" : "text-gray-600"
                 }`}
               >
@@ -436,10 +441,9 @@ export default function Register() {
               </p>
             </div>
 
-            {/* Masked Email */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-4 sm:mb-6">
               <div
-                className={`inline-block px-4 py-2 rounded-full font-medium font-['Montserrat'] ${
+                className={`inline-block px-3 py-2 sm:px-4 sm:py-2 rounded-full font-medium font-['Montserrat'] text-sm sm:text-base break-all ${
                   theme === "dark"
                     ? "bg-[#f67011]/20 text-[#f67011]"
                     : "bg-[#f67011]/10 text-[#f67011]"
@@ -449,10 +453,9 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Instructions */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <p
-                className={`text-sm font-normal font-['Montserrat'] leading-relaxed ${
+                className={`text-xs sm:text-sm font-normal font-['Montserrat'] leading-relaxed px-2 ${
                   theme === "dark" ? "text-gray-300" : "text-gray-600"
                 }`}
               >
@@ -461,20 +464,19 @@ export default function Register() {
               </p>
             </div>
 
-            {/* Actions */}
             <div className="space-y-3">
               <button
                 onClick={() => {
                   closeModal();
                   router.push("/login");
                 }}
-                className="w-full h-12 bg-[#f67011] hover:bg-[#e6651a] text-white rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300"
+                className="w-full h-12 sm:h-14 bg-[#f67011] hover:bg-[#e6651a] text-white rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300 text-sm sm:text-base"
               >
                 Go to Login
               </button>
               <button
                 onClick={closeModal}
-                className={`w-full h-12 border-2 rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300 ${
+                className={`w-full h-12 sm:h-14 border-2 rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300 text-sm sm:text-base ${
                   theme === "dark"
                     ? "border-gray-600 text-gray-300 hover:bg-gray-700"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
@@ -484,8 +486,7 @@ export default function Register() {
               </button>
             </div>
 
-            {/* Footer Note */}
-            <div className="text-center mt-6">
+            <div className="text-center mt-4 sm:mt-6">
               <p
                 className={`text-xs font-light font-['Montserrat'] ${
                   theme === "dark" ? "text-gray-400" : "text-gray-500"
@@ -498,11 +499,11 @@ export default function Register() {
         </div>
       )}
 
-      {/* Toast Notification */}
+      {/* Toast Notification - Mobile responsive */}
       {toast.show && (
-        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999]">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] px-4 w-full max-w-sm">
           <div
-            className={`shadow-xl rounded-lg p-4 max-w-sm border-l-4 animate-in slide-in-from-top-2 duration-300 ${
+            className={`shadow-xl rounded-lg p-3 sm:p-4 border-l-4 animate-in slide-in-from-top-2 duration-300 ${
               toast.type === "success"
                 ? "bg-green-600 border-green-400 text-white"
                 : toast.type === "warning"
@@ -513,11 +514,10 @@ export default function Register() {
             }`}
           >
             <div className="flex items-center space-x-3">
-              {/* Icon */}
               <div className="flex-shrink-0">
                 {toast.type === "success" && (
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -530,7 +530,7 @@ export default function Register() {
                 )}
                 {toast.type === "warning" && (
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -543,7 +543,7 @@ export default function Register() {
                 )}
                 {toast.type === "error" && (
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -556,12 +556,10 @@ export default function Register() {
                 )}
               </div>
 
-              {/* Message */}
-              <span className="text-sm font-semibold font-['Montserrat'] flex-1">
+              <span className="text-xs sm:text-sm font-semibold font-['Montserrat'] flex-1">
                 {toast.message}
               </span>
 
-              {/* Close button */}
               <button
                 onClick={() =>
                   setToast({ show: false, message: "", type: "error" })
@@ -569,7 +567,7 @@ export default function Register() {
                 className="flex-shrink-0 text-white hover:text-gray-200 transition-colors"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-3 h-3 sm:w-4 sm:h-4"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
