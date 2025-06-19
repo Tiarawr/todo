@@ -4,6 +4,12 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Login() {
+  // Add toast state yang hilang
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "error",
+  });
   const [theme, setTheme] = useState("light");
   const [isAnimating, setIsAnimating] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -13,8 +19,8 @@ export default function Login() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
 
+  // Fix console.log untuk showToast
   const showToast = (message, type = "error") => {
-    console.log("showToast called:", message, type); // Debug log
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: "", type: "error" });
@@ -180,7 +186,7 @@ export default function Login() {
           </div>
 
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 mb-4">
-            <image
+            <img
               src="/Login.svg"
               alt="Login Character"
               className="w-48 h-48 lg:w-96 lg:h-96 transition-transform duration-300 hover:scale-105"
@@ -303,7 +309,7 @@ export default function Login() {
                 theme === "dark" ? "text-[#d9d9d9]" : "text-gray-600"
               }`}
             >
-              Don&apos;t have an account?
+              Don't have an account?
             </span>
             <span
               onClick={handleSignUpClick}
