@@ -481,6 +481,7 @@ export default function Header() {
 
                     {/* View All Notifications */}
                     <div
+                      onClick={() => router.push("/notifications")}
                       className={`px-4 py-3 text-center transition-colors duration-300 border-b cursor-pointer font-['Montserrat'] ${
                         theme === "dark"
                           ? "text-[#f4721e] hover:bg-[#3a3a3a] border-gray-700"
