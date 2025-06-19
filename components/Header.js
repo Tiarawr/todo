@@ -39,7 +39,8 @@ export default function Header() {
   const isDashboard =
     pathname === "/dashboard" ||
     pathname === "/dashboard/settings" ||
-    pathname === "/dashboard/schedule";
+    pathname === "/dashboard/schedule" ||
+    pathname === "/verify-success";
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleLoginClick = () => {
