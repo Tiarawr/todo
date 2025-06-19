@@ -23,7 +23,10 @@ export default function RootLayout({ children }) {
   const pathname = usePathname();
 
   const isAuthPage =
-    pathname === "/login" || pathname === "/register" || pathname === "/tnc";
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/tnc" ||
+    pathname === "/verify-success";
 
   useEffect(() => {
     // Apply theme immediately saat component mount
