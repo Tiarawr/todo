@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export default function VerifySuccessPage() {
   const router = useRouter();
@@ -29,12 +28,12 @@ export default function VerifySuccessPage() {
             Your email has been successfully verified. You will be redirected to
             the login page shortly.
           </p>
-          <Button
+          <button
             onClick={() => router.push("/login")}
-            className="bg-[#f67011] hover:bg-[#e6651a] text-white w-full rounded-xl font-semibold font-['Montserrat'] mt-4"
+            className="btn btn-primary bg-[#f67011] hover:bg-[#e6651a] text-white w-full rounded-xl font-semibold font-['Montserrat'] mt-4"
           >
             Go to Login
-          </Button>
+          </button>
         </div>
       </div>
     </div>
