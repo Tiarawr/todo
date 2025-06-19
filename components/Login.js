@@ -22,6 +22,8 @@ export default function Login() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
@@ -71,9 +73,12 @@ export default function Login() {
   };
 
   const handleLoginClick = async () => {
+    if (!email || !password) {
+      showToast("Email and password are required.");
+      return;
+    }
+
     setIsLoggingIn(true);
-    const email = document.querySelector('input[type="email"]').value;
-    const password = document.querySelector('input[type="password"]').value;
 
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -83,7 +88,6 @@ export default function Login() {
       );
       const user = userCredential.user;
 
-      // Refresh status verifikasi email (kadang belum update langsung)
       await user.reload();
 
       if (!user.emailVerified) {
@@ -96,6 +100,7 @@ export default function Login() {
     } catch (error) {
       showToast(error.message);
       console.error("Login error:", error);
+    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -291,6 +296,8 @@ export default function Login() {
                 <input
                   type="email"
                   placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className={`w-full h-12 sm:h-14 px-4 sm:px-6 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
                     theme === "dark"
                       ? "border-[#4285f4] bg-[#1e1e1e] text-white"
@@ -301,6 +308,8 @@ export default function Login() {
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className={`w-full h-12 sm:h-14 px-4 sm:px-6 pr-12 sm:pr-14 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
                       theme === "dark"
                         ? "border-[#4285f4] bg-[#1e1e1e] text-white"
