@@ -471,7 +471,8 @@ export default function HelpSettings() {
                     theme === "dark" ? "text-gray-300" : "text-[#6f6a6a]"
                   }`}
                 >
-                  Can't find what you're looking for? Contact our support team
+                  Can&apos;t find what you&apos;re looking for? Contact our
+                  support team{" "}
                 </p>
               </div>
 

@@ -135,7 +135,7 @@ export default function Login() {
         <button
           type="button"
           onClick={toggleTheme}
-          className={`relative w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 cursor-pointer focus:outline-none ${
+          className={`relative w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 cursor-pointer ${
             theme === "dark" ? "bg-[#f67011]" : "bg-gray-300"
           }`}
           aria-label="Toggle theme"
@@ -180,7 +180,7 @@ export default function Login() {
           </div>
 
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 mb-4">
-            <img
+            <image
               src="/Login.svg"
               alt="Login Character"
               className="w-48 h-48 lg:w-96 lg:h-96 transition-transform duration-300 hover:scale-105"
@@ -303,7 +303,7 @@ export default function Login() {
                 theme === "dark" ? "text-[#d9d9d9]" : "text-gray-600"
               }`}
             >
-              Don't have an account?{" "}
+              Don&apos;t have an account?
             </span>
             <span
               onClick={handleSignUpClick}
