@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/Firebase";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export default function Login() {
   const [toast, setToast] = useState({
@@ -61,13 +65,46 @@ export default function Login() {
     }, 800);
   };
 
-  const handleLoginClick = () => {
+  const handleLoginClick = async () => {
     setIsLoggingIn(true);
-    setTimeout(() => {
+    const email = document.querySelector('input[type="email"]').value;
+    const password = document.querySelector('input[type="password"]').value;
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Refresh status verifikasi email (kadang belum update langsung)
+      await user.reload();
+
+      if (!user.emailVerified) {
+        showToast("Please verify your email before logging in.", "warning");
+        setIsLoggingIn(false);
+        return;
+      }
+
       router.push("/dashboard");
-    }, 500);
+    } catch (error) {
+      showToast(error.message);
+      console.error("Login error:", error);
+      setIsLoggingIn(false);
+    }
   };
 
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
+    } catch (error) {
+      showToast(error.message);
+      console.error("Google login error:", error);
+    }
+  };
   const maskEmail = (email) => {
     if (!email) return "";
 
@@ -98,10 +135,16 @@ export default function Login() {
     setIsEmailSent(false);
   };
 
-  const handleSendResetEmail = () => {
+  const handleSendResetEmail = async () => {
     if (forgotEmail) {
-      setMaskedForgotEmail(maskEmail(forgotEmail));
-      setIsEmailSent(true);
+      try {
+        await sendPasswordResetEmail(auth, forgotEmail);
+        setMaskedForgotEmail(maskEmail(forgotEmail));
+        setIsEmailSent(true);
+      } catch (error) {
+        showToast(error.message);
+        console.error("Reset error:", error);
+      }
     } else {
       showToast("Please enter your email address");
     }
@@ -209,17 +252,13 @@ export default function Login() {
 
               {/* Social Login */}
               <div className="flex justify-center gap-4 sm:gap-6">
-                <div className="group cursor-pointer">
+                <div
+                  className="group cursor-pointer"
+                  onClick={handleGoogleLogin}
+                >
                   <img
                     src="/Google.svg"
                     alt="Google Logo"
-                    className="w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
-                  />
-                </div>
-                <div className="group cursor-pointer">
-                  <img
-                    src="/Facebook.svg"
-                    alt="Facebook Logo"
                     className="w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
                   />
                 </div>

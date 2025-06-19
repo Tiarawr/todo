@@ -1,6 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "@/lib/Firebase";
 import { useRouter } from "next/navigation";
 
 export default function Register() {
@@ -32,6 +39,21 @@ export default function Register() {
       window.removeEventListener("themeChange", handleThemeChange);
     };
   }, []);
+
+  const actionCodeSettings = {
+    url: "https://numucodes.me/verify-success", // atau halaman hasil verifikasi kamu sendiri
+    handleCodeInApp: false,
+  };
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
+    } catch (error) {
+      showToast(error.message || "Google login failed", "error");
+      console.error("Google login error:", error);
+    }
+  };
 
   const toggleTheme = (e) => {
     e.preventDefault();
@@ -85,7 +107,7 @@ export default function Register() {
     }, 3000);
   };
 
-  const handleRegisterClick = () => {
+  const handleRegisterClick = async () => {
     const emailInput = document.querySelector('input[type="email"]').value;
     const fullNameInput = document.querySelector('input[type="text"]').value;
     const passwordInput = document.querySelector(
@@ -98,42 +120,38 @@ export default function Register() {
       'input[type="checkbox"]'
     ).checked;
 
-    // Validation
-    if (!fullNameInput.trim()) {
-      showToast("Please enter your full name!", "error");
-      return;
-    }
-
-    if (!emailInput.trim()) {
-      showToast("Please enter your email address!", "error");
-      return;
-    }
-
-    if (!passwordInput.trim()) {
-      showToast("Please enter a password!", "error");
-      return;
-    }
-
-    if (passwordInput !== confirmPasswordInput) {
-      showToast("Passwords do not match!", "error");
-      return;
-    }
-
-    if (!termsCheckbox) {
-      showToast("Please agree to the Terms and Conditions!", "warning");
-      return;
-    }
+    // Validasi
+    if (!fullNameInput.trim())
+      return showToast("Please enter your full name!", "error");
+    if (!emailInput.trim())
+      return showToast("Please enter your email address!", "error");
+    if (!passwordInput.trim())
+      return showToast("Please enter a password!", "error");
+    if (passwordInput !== confirmPasswordInput)
+      return showToast("Passwords do not match!", "error");
+    if (!termsCheckbox)
+      return showToast("Please agree to the Terms and Conditions!", "warning");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailInput)) {
-      showToast("Please enter a valid email address!", "error");
-      return;
-    }
+    if (!emailRegex.test(emailInput))
+      return showToast("Please enter a valid email address!", "error");
 
-    setEmail(emailInput);
-    setMaskedEmail(maskEmail(emailInput));
-    setShowModal(true);
-    showToast("Verification email sent successfully!", "success");
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        emailInput,
+        passwordInput
+      );
+      await sendEmailVerification(userCredential.user, actionCodeSettings);
+
+      setEmail(emailInput);
+      setMaskedEmail(maskEmail(emailInput));
+      setShowModal(true);
+      showToast("Verification email sent successfully!", "success");
+    } catch (error) {
+      showToast(error.message, "error");
+      console.error("Registration error:", error);
+    }
   };
 
   const closeModal = () => {
@@ -161,7 +179,7 @@ export default function Register() {
         theme === "dark" ? "bg-[#16151a]" : "bg-[#ffffff]"
       }`}
     >
-      {/* Toggle Switch - Mobile responsive */}
+      {/* Toggle Switch - Responsive positioning */}
       <div
         className={`absolute top-4 left-4 z-50 flex items-center gap-2 transition-all duration-800 ease-in-out ${
           isAnimating ? "transform -translate-x-full opacity-0" : ""
@@ -185,13 +203,14 @@ export default function Register() {
         </button>
       </div>
 
-      {/* Main Container - Fixed: flex-col tanpa reverse */}
-      <div className="flex flex-col xl:flex-row px-4 sm:px-6 lg:px-8 xl:px-24 gap-4 sm:gap-6 xl:gap-8">
-        {/* Branding Section - Mobile: Atas, Desktop: Kanan */}
-        <aside className="w-full xl:w-1/2 xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto">
+      {/* Main Container */}
+      <div className="min-h-screen flex flex-col">
+        {/* Mobile & iPad: Vertical Layout, Desktop: Horizontal Layout */}
+        <div className="flex-1 flex flex-col lg:flex-row">
+          {/* Branding Section - Mobile/iPad: Top, Desktop: Right */}
           <div
-            className={`min-h-[40vh] xl:min-h-screen relative flex flex-col justify-center items-center py-8 xl:py-0 transition-all duration-800 ease-in-out ${
-              isAnimating ? "xl:transform xl:-translate-x-full" : ""
+            className={`w-full lg:w-1/2 min-h-[40vh] lg:min-h-screen relative flex flex-col justify-center items-center order-1 lg:order-2 transition-all duration-800 ease-in-out ${
+              isAnimating ? "lg:transform lg:-translate-x-full" : ""
             }`}
           >
             {/* Background Gradient */}
@@ -204,9 +223,9 @@ export default function Register() {
             />
 
             {/* Content */}
-            <div className="relative z-10 text-center px-4 sm:px-6 xl:px-8">
+            <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
               <h1
-                className={`text-3xl sm:text-4xl xl:text-5xl font-black font-['Montserrat'] transition-colors duration-300 mb-2 sm:mb-4 ${
+                className={`text-3xl sm:text-4xl lg:text-5xl font-black font-['Montserrat'] transition-colors duration-300 mb-2 sm:mb-4 ${
                   theme === "dark" ? "text-white" : "text-black"
                 }`}
               >
@@ -222,27 +241,25 @@ export default function Register() {
             </div>
 
             {/* Character Image */}
-            <div className="relative z-10 mt-4 xl:mt-8">
+            <div className="relative z-10 mt-4 lg:mt-8">
               <img
                 src="/Register.svg"
                 alt="Register Character"
-                className="w-32 h-32 sm:w-48 sm:h-48 xl:w-80 xl:h-80 2xl:w-96 2xl:h-96 transition-transform duration-300 hover:scale-105"
+                className="w-32 h-32 sm:w-48 sm:h-48 lg:w-80 lg:h-80 xl:w-96 xl:h-96 transition-transform duration-300 hover:scale-105"
               />
             </div>
           </div>
-        </aside>
 
-        {/* Form Section - Mobile: Bawah, Desktop: Kiri */}
-        <main className="flex-1 space-y-6 sm:space-y-8 pb-8">
+          {/* Form Section - Mobile/iPad: Bottom, Desktop: Left */}
           <div
-            className={`min-h-[60vh] xl:min-h-screen flex flex-col justify-center items-center py-8 xl:py-0 transition-all duration-800 ease-in-out ${
-              isAnimating ? "xl:transform xl:translate-x-full" : ""
+            className={`w-full lg:w-1/2 min-h-[60vh] lg:min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-8 lg:py-0 order-2 lg:order-1 transition-all duration-800 ease-in-out ${
+              isAnimating ? "lg:transform lg:translate-x-full" : ""
             }`}
           >
             <div className="w-full max-w-md space-y-6 sm:space-y-8">
               {/* Title */}
               <h2
-                className={`text-2xl sm:text-3xl xl:text-[32px] font-extrabold font-['Montserrat'] text-center transition-colors duration-300 ${
+                className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold font-['Montserrat'] text-center transition-colors duration-300 ${
                   theme === "dark" ? "text-white" : "text-black"
                 }`}
               >
@@ -251,17 +268,13 @@ export default function Register() {
 
               {/* Social Login */}
               <div className="flex justify-center gap-4 sm:gap-6">
-                <div className="group cursor-pointer">
+                <div
+                  onClick={handleGoogleLogin}
+                  className="group cursor-pointer"
+                >
                   <img
                     src="/Google.svg"
                     alt="Google Logo"
-                    className="w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
-                  />
-                </div>
-                <div className="group cursor-pointer">
-                  <img
-                    src="/Facebook.svg"
-                    alt="Facebook Logo"
                     className="w-10 h-10 sm:w-12 sm:h-12 transition-transform duration-300 group-hover:scale-110 group-hover:brightness-125"
                   />
                 </div>
@@ -372,10 +385,10 @@ export default function Register() {
               </div>
             </div>
           </div>
-        </main>
+        </div>
       </div>
 
-      {/* Verification Modal - Mobile responsive */}
+      {/* Verification Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div
@@ -385,7 +398,7 @@ export default function Register() {
                 : "bg-gradient-to-br from-white to-gray-50 border border-gray-200"
             }`}
           >
-            {/* Modal content remains the same but responsive */}
+            {/* Close Button */}
             <button
               onClick={closeModal}
               className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${
@@ -409,6 +422,7 @@ export default function Register() {
               </svg>
             </button>
 
+            {/* Icon */}
             <div className="text-center mb-4 sm:mb-6">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#f67011]/20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <svg
@@ -441,6 +455,7 @@ export default function Register() {
               </p>
             </div>
 
+            {/* Masked Email */}
             <div className="text-center mb-4 sm:mb-6">
               <div
                 className={`inline-block px-3 py-2 sm:px-4 sm:py-2 rounded-full font-medium font-['Montserrat'] text-sm sm:text-base break-all ${
@@ -453,6 +468,7 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Instructions */}
             <div className="text-center mb-6 sm:mb-8">
               <p
                 className={`text-xs sm:text-sm font-normal font-['Montserrat'] leading-relaxed px-2 ${
@@ -464,6 +480,7 @@ export default function Register() {
               </p>
             </div>
 
+            {/* Actions */}
             <div className="space-y-3">
               <button
                 onClick={() => {
@@ -475,7 +492,20 @@ export default function Register() {
                 Go to Login
               </button>
               <button
-                onClick={closeModal}
+                onClick={async () => {
+                  try {
+                    const user = auth.currentUser;
+                    if (user) {
+                      await sendEmailVerification(user, actionCodeSettings);
+                      showToast("Verification email resent!", "success");
+                    } else {
+                      showToast("No user is logged in!", "error");
+                    }
+                  } catch (error) {
+                    console.error(error);
+                    showToast("Failed to resend verification email", "error");
+                  }
+                }}
                 className={`w-full h-12 sm:h-14 border-2 rounded-[17px] font-semibold font-['Montserrat'] transition-all duration-300 text-sm sm:text-base ${
                   theme === "dark"
                     ? "border-gray-600 text-gray-300 hover:bg-gray-700"
@@ -486,6 +516,7 @@ export default function Register() {
               </button>
             </div>
 
+            {/* Footer Note */}
             <div className="text-center mt-4 sm:mt-6">
               <p
                 className={`text-xs font-light font-['Montserrat'] ${
@@ -499,7 +530,7 @@ export default function Register() {
         </div>
       )}
 
-      {/* Toast Notification - Mobile responsive */}
+      {/* Toast Notification */}
       {toast.show && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] px-4 w-full max-w-sm">
           <div
@@ -514,6 +545,7 @@ export default function Register() {
             }`}
           >
             <div className="flex items-center space-x-3">
+              {/* Icon */}
               <div className="flex-shrink-0">
                 {toast.type === "success" && (
                   <svg
@@ -556,10 +588,12 @@ export default function Register() {
                 )}
               </div>
 
+              {/* Message */}
               <span className="text-xs sm:text-sm font-semibold font-['Montserrat'] flex-1">
                 {toast.message}
               </span>
 
+              {/* Close button */}
               <button
                 onClick={() =>
                   setToast({ show: false, message: "", type: "error" })

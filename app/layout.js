@@ -5,6 +5,7 @@ import { Montserrat, Poppins } from "next/font/google";
 import Header from "../components/Header";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import Head from "next/head";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -52,6 +53,11 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
+      <Head>
+        <link rel="icon" href="/todorik.svg" type="image/svg+xml" />
+        <meta name="theme-color" content="#f67011" />
+        <title>Todoriko</title>
+      </Head>
       <body
         className={`${montserrat.variable} ${poppins.variable} transition-colors duration-300`}
       >

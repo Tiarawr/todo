@@ -8,12 +8,10 @@ export default function ScheduleTask() {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const [showAddFilterModal, setShowAddFilterModal] = useState(false);
-  const [newFilterName, setNewFilterName] = useState(""); // Added for consistency
+  const [newFilterName, setNewFilterName] = useState("");
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
-
-  // Available colors array (same as Dashboard)
   const availableColors = [
     "#FF5F57",
     "#FEBC2E",
