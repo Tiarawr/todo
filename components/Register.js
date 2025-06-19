@@ -320,9 +320,9 @@ export default function Register() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className={`w-full h-12 sm:h-14 px-4 sm:px-6 pr-12 sm:pr-14 rounded-[21px] border transition-colors duration-300 placeholder:text-gray-400 text-sm sm:text-base ${
                       theme === "dark"
                         ? "border-[#4285f4] bg-[#1e1e1e] text-white"
@@ -342,7 +342,6 @@ export default function Register() {
                     }
                   >
                     {showPassword ? (
-                      // Eye Off Icon
                       <svg
                         className="w-5 h-5 sm:w-6 sm:h-6"
                         fill="none"
@@ -357,7 +356,6 @@ export default function Register() {
                         />
                       </svg>
                     ) : (
-                      // Eye On Icon
                       <svg
                         className="w-5 h-5 sm:w-6 sm:h-6"
                         fill="none"
