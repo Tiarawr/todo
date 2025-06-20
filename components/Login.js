@@ -83,7 +83,7 @@ export default function Login() {
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        email,
+        email.trim().toLowerCase(),
         password
       );
       const user = userCredential.user;
