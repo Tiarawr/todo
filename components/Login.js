@@ -88,48 +88,31 @@ export default function Login() {
     setIsLoggingIn(true);
 
     try {
-      // Step 1: Login
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        email.trim(),
+        email,
         password
       );
 
-      const loginUser = userCredential.user;
-
-      console.log(
-        "🔑 userCredential.user.emailVerified:",
-        loginUser.emailVerified
-      );
-      console.log(
-        "🔁 auth.currentUser before reload:",
-        auth.currentUser?.emailVerified
-      );
-
-      // Step 2: Reload user status
-      await auth.currentUser?.reload();
+      // 🔁 Force refresh token & status
+      await userCredential.user.reload();
       const refreshedUser = auth.currentUser;
 
       console.log(
-        "✅ auth.currentUser after reload:",
-        refreshedUser?.emailVerified
+        "🔑 refreshedUser.emailVerified:",
+        refreshedUser.emailVerified
       );
 
-      // Step 3: Conditional check
-      if (!refreshedUser?.emailVerified) {
+      if (!refreshedUser.emailVerified) {
         showToast("Please verify your email before logging in.", "warning");
         setIsLoggingIn(false);
         return;
       }
 
-      // Step 4: Success
-      console.log("🎉 Email verified! Redirecting to dashboard.");
       router.push("/dashboard");
     } catch (error) {
-      console.error("🔥 Login error:", error);
       showToast(error.message);
-    } finally {
-      setIsLoggingIn(false);
+      console.error("Login error:", error);
     }
   };
 
