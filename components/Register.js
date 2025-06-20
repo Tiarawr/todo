@@ -55,7 +55,7 @@ export default function Register() {
   }, []);
 
   const actionCodeSettings = {
-    url: "https://todoriko.xyz/verify-success", // atau halaman hasil verifikasi kamu sendiri
+    url: "https://auth.todoriko.xyz/verify-success", // atau halaman hasil verifikasi kamu sendiri
     handleCodeInApp: false,
   };
   const handleGoogleLogin = async () => {
