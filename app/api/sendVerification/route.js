@@ -18,7 +18,7 @@ export async function POST(req) {
     // Dynamically import Firebase Admin to avoid build-time initialization
     const { default: getFirebaseAdmin } = await import("@/lib/firebaseAdmin");
     const admin = getFirebaseAdmin();
-    
+
     if (!admin) {
       return new Response(
         JSON.stringify({ error: "Firebase service unavailable" }),
