@@ -86,11 +86,11 @@ export default function Login() {
         email.trim().toLowerCase(),
         password
       );
-      const user = userCredential.user;
 
-      await user.reload();
+      await auth.currentUser.reload(); // ganti user.reload()
+      const refreshedUser = auth.currentUser;
 
-      if (!user.emailVerified) {
+      if (!refreshedUser.emailVerified) {
         showToast("Please verify your email before logging in.", "warning");
         setIsLoggingIn(false);
         return;
