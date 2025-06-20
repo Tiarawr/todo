@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/Firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { setPersistence, browserLocalPersistence } from "firebase/auth";
 
 export default function Login() {
   const [toast, setToast] = useState({
@@ -35,6 +36,12 @@ export default function Login() {
       setToast({ show: false, message: "", type: "error" });
     }, 3000);
   };
+
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.error("Persistence error:", err);
+    });
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") || "light";

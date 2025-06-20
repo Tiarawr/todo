@@ -3,14 +3,15 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle } from "lucide-react";
-import { getAuth, signOut } from "firebase/auth";
+import { auth } from "@/lib/Firebase";
+import { signOut } from "firebase/auth";
 
 export default function VerifySuccessPage() {
   const router = useRouter();
 
   useEffect(() => {
     const auth = getAuth();
-    signOut(auth); // force logout to ensure emailVerified refreshes
+    signOut(auth);
 
     const timer = setTimeout(() => {
       router.push("/login");
