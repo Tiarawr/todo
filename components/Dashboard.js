@@ -3,6 +3,20 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import { auth, db } from "@/lib/Firebase";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function Dashboard() {
   const [theme, setTheme] = useState("light");
@@ -11,7 +25,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFilterModal, setShowAddFilterModal] = useState(false);
   const [newFilterName, setNewFilterName] = useState("");
-  const [newCategoryName, setNewCategoryName] = useState(""); // Added
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
@@ -20,12 +34,22 @@ export default function Dashboard() {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [toast, setToast] = useState(null);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-
-  
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    avatarURL: null,
+  });
 
   const router = useRouter();
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
+
+  // Firebase collections
+  const tasksCollection = collection(db, "tasks");
+  const categoriesCollection = collection(db, "categories");
 
   const handleNavigation = (path) => {
     router.push(path);
@@ -37,74 +61,7 @@ export default function Dashboard() {
     { name: "Work", color: "#28C840", isDefault: false },
   ]);
 
-  const [tasks, setTasks] = useState([
-    {
-      id: 0,
-      title: "Old Task - Will be deleted",
-      description:
-        "This task is over 2 years overdue and will be automatically deleted.",
-      time: "10:00 AM",
-      date: "Monday, 10 January 2022",
-      sortDate: "2022-01-10",
-      completed: false,
-      category: "personal",
-    },
-    {
-      id: 1,
-      title: "Apply Job",
-      description:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a pharetra diam. Nunc fringilla magna in finibus molestie.",
-      time: "09:30 AM",
-      date: "Sunday, 15 December 2024",
-      sortDate: "2024-12-15",
-      completed: false,
-      category: "WORK",
-    },
-    {
-      id: 2,
-      title: "Client Project",
-      description:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a pharetra diam. Nunc fringilla magna in finibus molestie.",
-      time: "02:15 PM",
-      date: "Sunday, 16 June 2025",
-      sortDate: "2025-06-16",
-      completed: false,
-      category: "Freelance",
-    },
-    {
-      id: 3,
-      title: "Meeting with Team",
-      description:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a pharetra diam. Nunc fringilla magna in finibus molestie.",
-      time: "11:45 AM",
-      date: "Monday, 17 June 2025",
-      sortDate: "2025-06-17",
-      completed: false,
-      category: "work",
-    },
-    {
-      id: 4,
-      title: "Personal Shopping",
-      description:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a pharetra diam. Nunc fringilla magna in finibus molestie.",
-      time: "04:20 PM",
-      date: "Wednesday, 18 June 2025",
-      sortDate: "2025-06-18",
-      completed: true,
-      category: "Personal",
-    },
-    {
-      id: 5,
-      title: "Website Development",
-      description:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a pharetra diam. Nunc fringilla magna in finibus molestie.",
-      time: "08:00 AM",
-      date: "Sunday, 29 June 2025",
-      sortDate: "2025-06-29",
-      completed: true,
-      category: "FREELANCE",
-    },
-  ]);
+  const [tasks, setTasks] = useState([]);
 
   const filters = ["Upcoming", "This Week", "Today", "Completed", "Overdue"];
 
@@ -136,13 +93,294 @@ export default function Dashboard() {
     "#DC143C",
   ];
 
-  // Save categories to localStorage whenever they change
+  // Tambahkan flag yang sama
+  const USE_FIREBASE = false; // Set false untuk testing  // Auth state listener and task loading
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem("taskCategories", JSON.stringify(taskCategories));
+    if (!USE_FIREBASE) {
+      // Skip Firebase, use localStorage mode
+      setCurrentUser({ uid: "test", email: "test@test.com" });
+      loadTasksFromLocalStorage();
+      loadCategoriesFromLocalStorage();
+      loadProfileFromLocalStorage(); // Load profile data
+      setLoading(false);
+      return;
     }
-  }, [taskCategories, mounted]);
 
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.emailVerified) {
+        setCurrentUser(user);
+        loadUserData(user.uid);
+        loadProfileFromLocalStorage(); // Load profile data for Firebase users too
+      } else {
+        setCurrentUser(null);
+        router.push("/login");
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]); // Load tasks from localStorage with user-specific key
+  const loadTasksFromLocalStorage = () => {
+    try {
+      // Use user email to create user-specific task storage
+      const userEmail = localStorage.getItem("userEmail") || "default";
+      const taskKey = `tasks_${userEmail}`;
+      const savedTasks = localStorage.getItem(taskKey);
+      if (savedTasks) {
+        const parsedTasks = JSON.parse(savedTasks);
+        console.log(
+          "Loaded tasks from localStorage for user:",
+          userEmail,
+          parsedTasks
+        );
+        console.log(
+          "Task IDs:",
+          parsedTasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            type: typeof t.id,
+          }))
+        );
+        setTasks(parsedTasks);
+      } else {
+        console.log("No tasks found in localStorage for user:", userEmail);
+        setTasks([]);
+      }
+    } catch (error) {
+      console.error("Error loading tasks from localStorage:", error);
+      setTasks([]);
+    }
+  };
+  // Load categories from localStorage
+  const loadCategoriesFromLocalStorage = () => {
+    try {
+      const savedCategories = localStorage.getItem("categories");
+      if (savedCategories) {
+        const parsedCategories = JSON.parse(savedCategories);
+        console.log("Loaded categories from localStorage:", parsedCategories);
+        setTaskCategories(parsedCategories);
+      } else {
+        console.log("No categories found in localStorage, using defaults");
+        // Use default categories
+        const defaultCategories = [
+          {
+            id: "personal",
+            name: "Personal",
+            color: "#FF5F57",
+            isDefault: false,
+          },
+          {
+            id: "freelance",
+            name: "Freelance",
+            color: "#FEBC2E",
+            isDefault: false,
+          },
+          { id: "work", name: "Work", color: "#28C840", isDefault: false },
+        ];
+        setTaskCategories(defaultCategories);
+        localStorage.setItem("categories", JSON.stringify(defaultCategories));
+      }
+    } catch (error) {
+      console.error("Error loading categories from localStorage:", error);
+      setTaskCategories([
+        {
+          id: "personal",
+          name: "Personal",
+          color: "#FF5F57",
+          isDefault: false,
+        },
+        {
+          id: "freelance",
+          name: "Freelance",
+          color: "#FEBC2E",
+          isDefault: false,
+        },
+        { id: "work", name: "Work", color: "#28C840", isDefault: false },
+      ]);
+    }
+  };
+
+  // Load profile from localStorage
+  const loadProfileFromLocalStorage = () => {
+    try {
+      const savedProfile = localStorage.getItem("userProfile");
+      if (savedProfile) {
+        const parsedProfile = JSON.parse(savedProfile);
+        console.log("Loaded profile from localStorage:", parsedProfile);
+        setUserProfile(parsedProfile);
+      } else {
+        console.log("No profile found in localStorage, using default");
+        // Set default profile data
+        const defaultProfile = {
+          firstName: "Todoriko",
+          lastName: "",
+          email: "user@todoapp.com",
+          avatarURL: null,
+        };
+        setUserProfile(defaultProfile);
+        localStorage.setItem("userProfile", JSON.stringify(defaultProfile));
+      }
+    } catch (error) {
+      console.error("Error loading profile from localStorage:", error);
+      setUserProfile({
+        firstName: "Todoriko",
+        lastName: "",
+        email: "user@todoapp.com",
+        avatarURL: null,
+      });
+    }
+  };
+
+  // Load user data from Firestore
+  const loadUserData = async (userId) => {
+    if (!USE_FIREBASE) {
+      loadTasksFromLocalStorage();
+      return;
+    }
+
+    try {
+      // Load tasks
+      const tasksQuery = query(
+        tasksCollection,
+        where("userId", "==", userId),
+        orderBy("sortDate", "desc")
+      );
+
+      const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+        const userTasks = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTasks(userTasks);
+      });
+
+      // Load categories
+      const categoriesQuery = query(
+        categoriesCollection,
+        where("userId", "==", userId)
+      );
+
+      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+        const userCategories = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        if (userCategories.length > 0) {
+          setTaskCategories(userCategories);
+        } else {
+          // Create default categories if none exist
+          createDefaultCategories(userId);
+        }
+      });
+
+      return () => {
+        unsubscribeTasks();
+        unsubscribeCategories();
+      };
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      showToast("Error loading data", "error");
+    }
+  };
+
+  // Create default categories for new users
+  const createDefaultCategories = async (userId) => {
+    const defaultCategories = [
+      { name: "Personal", color: "#FF5F57", isDefault: false },
+      { name: "Freelance", color: "#FEBC2E", isDefault: false },
+      { name: "Work", color: "#28C840", isDefault: false },
+    ];
+
+    try {
+      for (const category of defaultCategories) {
+        await addDoc(categoriesCollection, {
+          ...category,
+          userId: userId,
+          createdAt: new Date(),
+        });
+      }
+    } catch (error) {
+      console.error("Error creating default categories:", error);
+    }
+  };
+
+  // Save task to Firestore
+  const saveTaskToFirestore = async (taskData) => {
+    if (!currentUser) return;
+
+    try {
+      await addDoc(tasksCollection, {
+        ...taskData,
+        userId: currentUser.uid,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      showToast("Task saved successfully!", "success");
+    } catch (error) {
+      console.error("Error saving task:", error);
+      showToast("Error saving task", "error");
+    }
+  };
+
+  // Update task in Firestore
+  const updateTaskInFirestore = async (taskId, updates) => {
+    if (!currentUser) return;
+
+    try {
+      const taskDoc = doc(db, "tasks", taskId);
+      await updateDoc(taskDoc, {
+        ...updates,
+        updatedAt: new Date(),
+      });
+      showToast("Task updated successfully!", "success");
+    } catch (error) {
+      console.error("Error updating task:", error);
+      showToast("Error updating task", "error");
+    }
+  };
+
+  // Delete task from Firestore
+  const deleteTaskFromFirestore = async (taskId) => {
+    if (!USE_FIREBASE) return; // Early return jika Firebase disabled
+
+    try {
+      await deleteDoc(doc(db, "tasks", taskId));
+    } catch (error) {
+      console.error("Error deleting task from Firestore:", error);
+      throw error;
+    }
+  };
+
+  // Save category to Firestore
+  const saveCategoryToFirestore = async (categoryData) => {
+    if (!currentUser) return;
+
+    try {
+      await addDoc(categoriesCollection, {
+        ...categoryData,
+        userId: currentUser.uid,
+        createdAt: new Date(),
+      });
+      showToast("Category saved successfully!", "success");
+    } catch (error) {
+      console.error("Error saving category:", error);
+      showToast("Error saving category", "error");
+    }
+  };
+
+  // Delete category from Firestore
+  const deleteCategoryFromFirestore = async (categoryId) => {
+    if (!currentUser) return;
+
+    try {
+      await deleteDoc(doc(db, "categories", categoryId));
+      showToast("Category deleted successfully!", "success");
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      showToast("Error deleting category", "error");
+    }
+  };
   // Toast function
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -151,7 +389,27 @@ export default function Dashboard() {
       setToast(null);
     }, 3000);
   };
+  // Update profile function
+  const updateProfile = (profileData) => {
+    try {
+      const updatedProfile = { ...userProfile, ...profileData };
+      setUserProfile(updatedProfile);
+      localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+      console.log("Profile updated:", updatedProfile);
 
+      // Dispatch event to notify other components
+      window.dispatchEvent(
+        new CustomEvent("profileChange", {
+          detail: { profile: updatedProfile },
+        })
+      );
+
+      showToast("Profile updated successfully!", "success");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      showToast("Error updating profile", "error");
+    }
+  };
   // USE EFFECTS
   useEffect(() => {
     const initTheme = () => {
@@ -159,12 +417,6 @@ export default function Dashboard() {
         const savedTheme = localStorage.getItem("theme") || "light";
         setTheme(savedTheme);
         setMounted(true);
-
-        // Load categories from localStorage if available
-        const savedCategories = localStorage.getItem("taskCategories");
-        if (savedCategories) {
-          setTaskCategories(JSON.parse(savedCategories));
-        }
       }
     };
 
@@ -174,9 +426,20 @@ export default function Dashboard() {
       setTheme(event.detail.theme);
     };
 
+    // Listen for profile changes
+    const handleProfileChange = (event) => {
+      if (event.detail && event.detail.profile) {
+        setUserProfile(event.detail.profile);
+        console.log("Profile updated from event:", event.detail.profile);
+      }
+    };
+
     window.addEventListener("themeChange", handleThemeChange);
+    window.addEventListener("profileChange", handleProfileChange);
+
     return () => {
       window.removeEventListener("themeChange", handleThemeChange);
+      window.removeEventListener("profileChange", handleProfileChange);
     };
   }, []);
 
@@ -219,35 +482,49 @@ export default function Dashboard() {
     );
     return category ? category.color : "#FEBC2E";
   };
-
-  // Updated to match ScheduleTask naming
-  const addPredefinedCategory = (name, color) => {
+  // Updated to save to localStorage or Firestore
+  const addPredefinedCategory = async (name, color) => {
     const existingCategory = taskCategories.find(
       (cat) => cat.name.toLowerCase() === name.toLowerCase()
     );
 
     if (existingCategory) {
-      showToast(`Category "${existingCategory.name}" already exists!`);
+      showToast(`Category "${existingCategory.name}" already exists!`, "error");
       return;
     }
 
     const newCategory = {
+      id: Date.now().toString(), // Generate ID for localStorage
       name: name,
       color: color,
       isDefault: false,
     };
 
-    setTaskCategories((prev) => [...prev, newCategory]);
-    setShowAddCategoryModal(false);
-    showToast(`Category "${name}" added successfully!`, "success");
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE
+      try {
+        const updatedCategories = [...taskCategories, newCategory];
+        setTaskCategories(updatedCategories);
+        localStorage.setItem("categories", JSON.stringify(updatedCategories));
+        showToast("Category added successfully!", "success");
+      } catch (error) {
+        console.error("Error saving category to localStorage:", error);
+        showToast("Error saving category", "error");
+      }
+    } else {
+      // FIREBASE MODE
+      await saveCategoryToFirestore(newCategory);
+    }
+
+    setShowAddFilterModal(false);
   };
 
-  // Updated to match ScheduleTask naming
-  const addCustomCategory = () => {
+  // Updated to save to localStorage or Firestore
+  const addCustomCategory = async () => {
     const trimmedName = newFilterName.trim();
 
     if (!trimmedName) {
-      showToast("Category name cannot be empty!");
+      showToast("Category name cannot be empty!", "error");
       return;
     }
 
@@ -256,22 +533,37 @@ export default function Dashboard() {
     );
 
     if (existingCategory) {
-      showToast(`Category "${existingCategory.name}" already exists!`);
-      setNewCategoryName("");
+      showToast(`Category "${existingCategory.name}" already exists!`, "error");
+      setNewFilterName("");
       return;
     }
 
     const newCategory = {
+      id: Date.now().toString(), // Generate ID for localStorage
       name: trimmedName,
       color: getAvailableColor(),
       isDefault: false,
     };
 
-    setTaskCategories((prev) => [...prev, newCategory]);
-    setNewCategoryName("");
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE
+      try {
+        const updatedCategories = [...taskCategories, newCategory];
+        setTaskCategories(updatedCategories);
+        localStorage.setItem("categories", JSON.stringify(updatedCategories));
+        showToast("Category added successfully!", "success");
+      } catch (error) {
+        console.error("Error saving category to localStorage:", error);
+        showToast("Error saving category", "error");
+      }
+    } else {
+      // FIREBASE MODE
+      await saveCategoryToFirestore(newCategory);
+    }
+
+    setNewFilterName("");
     setShowCustomInput(false);
-    setShowAddCategoryModal(false);
-    showToast(`Category "${trimmedName}" created successfully!`, "success");
+    setShowAddFilterModal(false);
   };
 
   // Legacy function for backward compatibility
@@ -283,21 +575,33 @@ export default function Dashboard() {
   const addPredefinedFilter = (name, color) => {
     addPredefinedCategory(name, color);
   };
-
-  const removeFilter = (filterName) => {
+  // Updated to delete from localStorage or Firestore
+  const removeFilter = async (filterName) => {
     const categoryToRemove = taskCategories.find(
       (cat) => cat.name.toLowerCase() === filterName.toLowerCase()
     );
 
-    if (categoryToRemove && !categoryToRemove.isDefault) {
-      setTaskCategories((prev) =>
-        prev.filter(
-          (cat) => cat.name.toLowerCase() !== filterName.toLowerCase()
-        )
-      );
-      showToast(`Category "${filterName}" removed successfully!`, "success");
-    } else {
+    if (!categoryToRemove || categoryToRemove.isDefault) {
       showToast("Cannot remove this category!", "error");
+      return;
+    }
+
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE
+      try {
+        const updatedCategories = taskCategories.filter(
+          (cat) => cat.id !== categoryToRemove.id
+        );
+        setTaskCategories(updatedCategories);
+        localStorage.setItem("categories", JSON.stringify(updatedCategories));
+        showToast("Category removed successfully!", "success");
+      } catch (error) {
+        console.error("Error removing category from localStorage:", error);
+        showToast("Error removing category", "error");
+      }
+    } else {
+      // FIREBASE MODE
+      await deleteCategoryFromFirestore(categoryToRemove.id);
     }
   };
 
@@ -465,35 +769,281 @@ export default function Dashboard() {
     setShowTaskModal(true);
   };
 
-  const handleToggleComplete = () => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === selectedTask.id
-          ? { ...task, completed: !task.completed }
-          : task
-      )
-    );
-    setShowTaskModal(false);
-    setSelectedTask(null);
-  };
+  // Updated to save to Firestore
+  const handleToggleComplete = async (taskId) => {
+    console.log("🔄 handleToggleComplete called with:", {
+      taskId,
+      type: typeof taskId,
+    });
 
+    // Validate taskId - reject events
+    if (
+      !taskId ||
+      typeof taskId === "object" ||
+      taskId.target ||
+      taskId._reactName
+    ) {
+      console.error(
+        "❌ Invalid taskId received (probably an event object):",
+        taskId
+      );
+      return;
+    }
+
+    if (!currentUser && USE_FIREBASE) {
+      showToast("Please log in to update tasks", "error");
+      return;
+    }
+
+    console.log("🔍 Looking for task with ID:", taskId);
+    console.log(
+      "📝 Available tasks:",
+      tasks.map((t) => ({ id: t.id, title: t.title, type: typeof t.id }))
+    );
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) {
+      console.error("❌ Task not found with ID:", taskId);
+      return;
+    }
+
+    const newCompletedState = !task.completed;
+    console.log("✅ Found task:", task.title, "New state:", newCompletedState);
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE with user-specific key
+      try {
+        // Use user email to create user-specific task storage
+        const userEmail = localStorage.getItem("userEmail") || "default";
+        const taskKey = `tasks_${userEmail}`;
+        const existingTasks = JSON.parse(localStorage.getItem(taskKey) || "[]");
+        const updatedTasks = existingTasks.map((t) =>
+          t.id === taskId ? { ...t, completed: newCompletedState } : t
+        );
+        localStorage.setItem(taskKey, JSON.stringify(updatedTasks));
+        setTasks(updatedTasks);
+        showToast(
+          `Task marked as ${newCompletedState ? "completed" : "pending"}!`,
+          "success"
+        );
+        console.log("✅ Task updated in localStorage successfully");
+      } catch (error) {
+        console.error("❌ Error updating task in localStorage:", error);
+        showToast("Error updating task", "error");
+      }
+      return;
+    }
+
+    // FIREBASE MODE
+    try {
+      await updateTaskInFirestore(taskId, { completed: newCompletedState });
+      showToast(
+        `Task marked as ${newCompletedState ? "completed" : "pending"}!`,
+        "success"
+      );
+    } catch (error) {
+      console.error("❌ Error updating task in Firestore:", error);
+      showToast("Error updating task", "error");
+    }
+  };
   const handleEditTask = () => {
-    setEditingTask({ ...selectedTask });
+    // Convert human-readable date back to ISO format for date input
+    const convertDateToISO = (dateString) => {
+      if (!dateString) return "";
+
+      try {
+        // Parse the human-readable date string and convert to ISO format
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+        return date.toISOString().split("T")[0]; // Returns yyyy-MM-dd format
+      } catch (error) {
+        console.error("Error converting date:", error);
+        return "";
+      }
+    };
+
+    const editTask = {
+      ...selectedTask,
+      date: convertDateToISO(selectedTask.date), // Convert for date input
+    };
+
+    setEditingTask(editTask);
     setShowTaskModal(false);
   };
 
-  const handleDeleteTask = () => {
-    setTasks((prevTasks) =>
-      prevTasks.filter((task) => task.id !== selectedTask.id)
+  // Updated to delete from Firestore
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
+
+    console.log(
+      "Delete task called:",
+      selectedTask.id,
+      "USE_FIREBASE:",
+      USE_FIREBASE
     );
-    setShowTaskModal(false);
-    setSelectedTask(null);
+
+    if (!currentUser && USE_FIREBASE) {
+      showToast("Please log in to delete tasks", "error");
+      return;
+    }
+
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      if (!USE_FIREBASE) {
+        // LOCAL STORAGE DELETE
+        try {
+          const existingTasks = JSON.parse(
+            localStorage.getItem("tasks") || "[]"
+          );
+          const updatedTasks = existingTasks.filter(
+            (task) => task.id !== selectedTask.id
+          );
+          localStorage.setItem("tasks", JSON.stringify(updatedTasks));
+
+          setTasks(updatedTasks);
+          showToast("Task deleted successfully!", "success");
+          console.log("Task deleted from localStorage:", selectedTask.id);
+        } catch (error) {
+          console.error("Error deleting task:", error);
+          showToast("Error deleting task", "error");
+        }
+      } else {
+        // FIREBASE DELETE
+        try {
+          await deleteTaskFromFirestore(selectedTask.id);
+          showToast("Task deleted successfully!", "success");
+        } catch (error) {
+          console.error("Error deleting task:", error);
+          showToast("Error deleting task", "error");
+        }
+      }
+
+      setShowTaskModal(false);
+      setSelectedTask(null);
+    }
   };
 
-  const handleSaveEdit = () => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) => (task.id === editingTask.id ? editingTask : task))
+  // Fix Modal Toggle Complete Function
+  const handleToggleCompleteFromModal = async () => {
+    if (!selectedTask) {
+      console.log("No selected task");
+      return;
+    }
+
+    console.log("Toggling complete from modal for task:", selectedTask.id);
+    await handleToggleComplete(selectedTask.id);
+
+    // Update selectedTask state untuk UI
+    setSelectedTask((prev) => ({
+      ...prev,
+      completed: !prev.completed,
+    }));
+  };
+
+  // Fix Modal Delete Function
+  const handleDeleteTaskFromModal = async () => {
+    if (!selectedTask) {
+      console.log("No selected task to delete");
+      return;
+    }
+
+    console.log(
+      "Delete task from modal:",
+      selectedTask.id,
+      "USE_FIREBASE:",
+      USE_FIREBASE
     );
+
+    if (!currentUser && USE_FIREBASE) {
+      showToast("Please log in to delete tasks", "error");
+      return;
+    }
+
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      if (!USE_FIREBASE) {
+        // LOCAL STORAGE DELETE
+        try {
+          const existingTasks = JSON.parse(
+            localStorage.getItem("tasks") || "[]"
+          );
+          const updatedTasks = existingTasks.filter(
+            (task) => task.id !== selectedTask.id
+          );
+          localStorage.setItem("tasks", JSON.stringify(updatedTasks));
+
+          setTasks(updatedTasks);
+          showToast("Task deleted successfully!", "success");
+          console.log("Task deleted from localStorage:", selectedTask.id);
+        } catch (error) {
+          console.error("Error deleting task:", error);
+          showToast("Error deleting task", "error");
+        }
+      } else {
+        // FIREBASE DELETE
+        try {
+          await deleteTaskFromFirestore(selectedTask.id);
+          showToast("Task deleted successfully!", "success");
+        } catch (error) {
+          console.error("Error deleting task:", error);
+          showToast("Error deleting task", "error");
+        }
+      }
+
+      setShowTaskModal(false);
+      setSelectedTask(null);
+    }
+  };
+  // Handle save edit function
+  const handleSaveEdit = async () => {
+    if (!editingTask) return;
+
+    // Convert ISO date back to human-readable format for storage
+    const convertISOToReadable = (isoDateString) => {
+      if (!isoDateString) return "";
+
+      try {
+        const date = new Date(isoDateString);
+        if (isNaN(date.getTime())) return isoDateString;
+
+        // Convert to readable format like "Fri, 27 June 2025"
+        return date.toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      } catch (error) {
+        console.error("Error converting ISO date:", error);
+        return isoDateString;
+      }
+    };
+
+    // Update sortDate when editing and convert date format
+    const updatedTask = {
+      ...editingTask,
+      date: convertISOToReadable(editingTask.date), // Convert back to readable format
+      sortDate: editingTask.date, // Keep ISO format for sorting
+    };
+
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE
+      try {
+        const existingTasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        const updatedTasks = existingTasks.map((t) =>
+          t.id === updatedTask.id ? updatedTask : t
+        );
+        localStorage.setItem("tasks", JSON.stringify(updatedTasks));
+        setTasks(updatedTasks);
+        showToast("Task updated successfully!", "success");
+        console.log("Task edited in localStorage:", updatedTask.id);
+      } catch (error) {
+        console.error("Error updating task in localStorage:", error);
+        showToast("Error updating task", "error");
+      }
+    } else {
+      // FIREBASE MODE
+      const { id, ...updateData } = updatedTask;
+      await updateTaskInFirestore(id, updateData);
+    }
+
     setEditingTask(null);
   };
 
@@ -517,12 +1067,17 @@ export default function Dashboard() {
     }, {});
 
   // LOADING STATE
-  if (!mounted) {
+  if (!mounted || loading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#febc2e]"></div>
       </div>
     );
+  }
+
+  // Not authenticated
+  if (!currentUser) {
+    return null; // Will redirect in useEffect
   }
 
   // RETURN JSX
@@ -532,7 +1087,23 @@ export default function Dashboard() {
         theme === "dark" ? "bg-[#1E1E1E]" : "bg-white"
       }`}
     >
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`px-4 py-2 rounded-lg shadow-lg ${
+              toast.type === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col xl:flex-row px-4 sm:px-6 lg:px-8 xl:px-24 gap-4 sm:gap-6 xl:gap-8">
+        {" "}
         {/* Sidebar */}
         <Sidebar
           theme={theme}
@@ -551,8 +1122,9 @@ export default function Dashboard() {
           addPredefinedFilter={addPredefinedFilter}
           removeFilter={removeFilter}
           showCustomInput={showCustomInput}
-        ></Sidebar>
-
+          userProfile={userProfile}
+          updateProfile={updateProfile}
+        />
         {/* Main Content */}
         <main className="flex-1 space-y-6 sm:space-y-8 pb-8">
           {/* Search Bar */}
@@ -643,7 +1215,6 @@ export default function Dashboard() {
                 }`}
                 style={{ width: "280px" }}
               >
-                {/* Calendar content remains the same */}
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold font-['Montserrat']">
                     {new Date().toLocaleDateString("en-US", {
@@ -963,7 +1534,19 @@ export default function Dashboard() {
                         {/* Task Footer */}
                         <div className="flex justify-end">
                           {task.completed ? (
-                            <div className="w-6 h-6 sm:w-7 sm:h-7 bg-[#F4721E] rounded flex items-center justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log(
+                                  "Task card toggle - Completed task ID:",
+                                  task.id
+                                );
+                                handleToggleComplete(task.id);
+                              }}
+                              className="w-6 h-6 sm:w-7 sm:h-7 bg-[#F4721E] rounded flex items-center justify-center hover:bg-[#E85A05] transition-colors"
+                              title="Mark as incomplete"
+                            >
                               <svg
                                 width="16"
                                 height="12"
@@ -976,9 +1559,21 @@ export default function Dashboard() {
                                   fill="white"
                                 />
                               </svg>
-                            </div>
+                            </button>
                           ) : (
-                            <div className="w-6 h-6 sm:w-7 sm:h-7 bg-[#F4721E] rounded"></div>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log(
+                                  "Task card toggle - Incomplete task ID:",
+                                  task.id
+                                );
+                                handleToggleComplete(task.id);
+                              }}
+                              className="w-6 h-6 sm:w-7 sm:h-7 bg-[#F4721E] rounded hover:bg-[#E85A05] transition-colors"
+                              title="Mark as complete"
+                            ></button>
                           )}
                         </div>
                       </div>
@@ -1191,7 +1786,11 @@ export default function Dashboard() {
             <div className="space-y-2">
               {/* Complete/Uncomplete Button */}
               <button
-                onClick={handleToggleComplete}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleToggleCompleteFromModal();
+                }}
                 className={`w-full flex items-center space-x-3 p-2 rounded transition-colors duration-200 ${
                   selectedTask.completed
                     ? "hover:bg-orange-50 dark:hover:bg-orange-900 text-orange-600 dark:text-orange-400"
@@ -1201,17 +1800,19 @@ export default function Dashboard() {
                 {selectedTask.completed ? (
                   <>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path
-                        d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zM6.5 12L2 7.5l1.41-1.41L6.5 9.17l6.59-6.59L14.5 4 6.5 12z"
-                        fill="currentColor"
-                      />
-                      <line
-                        x1="2"
-                        y1="8"
-                        x2="14"
-                        y2="8"
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="7"
                         stroke="currentColor"
                         strokeWidth="2"
+                        fill="none"
+                      />
+                      <path
+                        d="M5 8h6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
                       />
                     </svg>
                     <span className="text-sm font-['Montserrat']">
@@ -1249,12 +1850,16 @@ export default function Dashboard() {
 
               {/* Delete Button */}
               <button
-                onClick={handleDeleteTask}
-                className="w-full flex items-center space-x-3 p-2 rounded hover:bg-red-50 dark:hover:bg-red-900 text-red-600 dark:text-red-400 transition-colors duration-200"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDeleteTaskFromModal();
+                }}
+                className="w-full flex items-center space-x-3 p-2 rounded transition-colors duration-200 hover:bg-red-50 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path
-                    d="M5.5 1a.5.5 0 000 1h5a.5.5 0 000-1h-5zM3 2.5a.5.5 0 01.5-.5h1.064l.085-.002.018-.007A3.001 3.001 0 017.5 1h1a3.001 3.001 0 012.833.991l.018.007.085.002H12.5a.5.5 0 010 1h-1v9a2 2 0 01-2 2h-3a2 2 0 01-2-2v-9h-1a.5.5 0 01-.5-.5z"
+                    d="M11 1.5v1h3.5V4h-1v10a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3.5 14V4h-1V2.5H6v-1A1.5 1.5 0 0 1 7.5 0h1A1.5 1.5 0 0 1 10 1.5zM4.5 4v10h7V4h-7zM6 1.5v1h4v-1h-4z"
                     fill="currentColor"
                   />
                 </svg>
@@ -1333,17 +1938,63 @@ export default function Dashboard() {
                   }`}
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium font-['Montserrat'] mb-1">
+                  Date
+                </label>{" "}
+                <input
+                  type="date"
+                  value={editingTask.date}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setEditingTask({
+                      ...editingTask,
+                      date: newDate, // Keep ISO format for the input
+                      sortDate: newDate, // Update sortDate when date changes
+                    });
+                  }}
+                  className={`w-full p-2 border rounded font-['Montserrat'] outline-none focus:border-[#FEBC2E] transition-colors duration-300 ${
+                    theme === "dark"
+                      ? "bg-[#3D3D3D] border-gray-600 text-white placeholder-gray-400"
+                      : "bg-white border-gray-300 text-black placeholder-gray-500"
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium font-['Montserrat'] mb-1">
+                  Category
+                </label>
+                <select
+                  value={editingTask.category}
+                  onChange={(e) =>
+                    setEditingTask({ ...editingTask, category: e.target.value })
+                  }
+                  className={`w-full p-2 border rounded font-['Montserrat'] outline-none focus:border-[#FEBC2E] transition-colors duration-300 ${
+                    theme === "dark"
+                      ? "bg-[#3D3D3D] border-gray-600 text-white placeholder-gray-400"
+                      : "bg-white border-gray-300 text-black placeholder-gray-500"
+                  }`}
+                >
+                  <option value="">Select category</option>
+                  {taskCategories.map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="flex justify-end space-x-3 mt-6">
+
+            <div className="flex justify-end space-x-2 mt-4">
               <button
                 onClick={handleCancelEdit}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-['Montserrat'] transition-colors duration-200"
+                className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 font-['Montserrat'] transition-colors duration-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="px-4 py-2 bg-[#FEBC2E] text-white rounded-lg font-['Montserrat'] hover:bg-[#E5A627] transition-colors duration-200"
+                className="px-3 py-1 text-xs bg-[#FEBC2E] text-white rounded font-['Montserrat'] hover:bg-[#E5A627] transition-colors duration-200"
               >
                 Save Changes
               </button>

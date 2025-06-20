@@ -6,6 +6,12 @@ import { useRouter, usePathname } from "next/navigation";
 export default function Header() {
   const [theme, setTheme] = useState("light");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [userProfile, setUserProfile] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    avatarURL: null,
+  });
   const [notifications] = useState([
     {
       id: 1,
@@ -40,14 +46,38 @@ export default function Header() {
     pathname === "/dashboard" ||
     pathname === "/dashboard/settings" ||
     pathname === "/dashboard/schedule";
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length; // Generate display name from profile - two versions
+  const getDisplayName = (showFullName = false) => {
+    if (showFullName) {
+      // For dropdown - show full name
+      if (userProfile.firstName && userProfile.lastName) {
+        return `${userProfile.firstName} ${userProfile.lastName}`;
+      } else if (userProfile.firstName) {
+        return userProfile.firstName;
+      } else if (userProfile.email) {
+        return userProfile.email.split("@")[0]; // Use email prefix if no name
+      }
+      return "User"; // Fallback
+    } else {
+      // For header - show only first name
+      if (userProfile.firstName) {
+        return userProfile.firstName;
+      } else if (userProfile.email) {
+        return userProfile.email.split("@")[0]; // Use email prefix if no name
+      }
+      return "User"; // Fallback
+    }
+  };
 
   const handleLoginClick = () => {
     router.push("/login");
   };
-
   const handleLogout = () => {
     setShowDropdown(false);
+    // Clear user session but keep profile data for next login
+    localStorage.removeItem("userEmail");
+    // Important: DO NOT remove userProfile - it should persist
+    console.log("🚪 Logout: Removed userEmail but kept userProfile");
     router.push("/");
   };
 
@@ -130,11 +160,64 @@ export default function Header() {
         );
     }
   };
-
   useEffect(() => {
     // Get initial theme
     const savedTheme = localStorage.getItem("theme") || "light";
-    setTheme(savedTheme);
+    setTheme(savedTheme); // Load profile from localStorage
+    const loadProfile = () => {
+      try {
+        const savedProfile = localStorage.getItem("userProfile");
+        const userEmail = localStorage.getItem("userEmail");
+        console.log("🔍 Header loading profile - savedProfile:", savedProfile);
+        console.log("🔍 Header loading profile - userEmail:", userEmail);
+
+        if (savedProfile) {
+          const profileData = JSON.parse(savedProfile);
+          console.log("✅ Header parsed profile data:", profileData);
+
+          // Update with userEmail if available and different
+          if (userEmail && userEmail !== profileData.email) {
+            profileData.email = userEmail;
+            localStorage.setItem("userProfile", JSON.stringify(profileData));
+            console.log("🔧 Header updated profile email to:", userEmail);
+          }
+
+          setUserProfile(profileData);
+        } else if (userEmail) {
+          // Create profile from userEmail if no profile exists
+          const defaultProfile = {
+            firstName: "User",
+            lastName: "",
+            email: userEmail,
+            avatarURL: null,
+          };
+          console.log(
+            "📝 Header created profile from userEmail:",
+            defaultProfile
+          );
+          setUserProfile(defaultProfile);
+          localStorage.setItem("userProfile", JSON.stringify(defaultProfile));
+        } else {
+          // Keep existing profile even if no userEmail (after logout)
+          // Only set default profile if absolutely no profile exists
+          console.log(
+            "📝 Header: No userEmail found, keeping existing profile"
+          );
+          // Don't overwrite existing profile after logout
+        }
+      } catch (error) {
+        console.error("❌ Error loading profile in Header:", error);
+        const fallbackProfile = {
+          firstName: "Todoriko",
+          lastName: "",
+          email: "user@todoapp.com",
+          avatarURL: null,
+        };
+        setUserProfile(fallbackProfile);
+      }
+    };
+
+    loadProfile();
 
     // Listen for theme changes
     const handleStorageChange = () => {
@@ -144,6 +227,13 @@ export default function Header() {
 
     const handleThemeChange = (event) => {
       setTheme(event.detail.theme);
+    };
+
+    // Listen for profile changes from other components
+    const handleProfileChange = (event) => {
+      if (event.detail && event.detail.profile) {
+        setUserProfile(event.detail.profile);
+      }
     };
 
     // Close menus when clicking outside
@@ -156,14 +246,15 @@ export default function Header() {
         setShowDropdown(false);
       }
     };
-
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("themeChange", handleThemeChange);
+    window.addEventListener("profileChange", handleProfileChange);
     document.addEventListener("click", handleClickOutside);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("themeChange", handleThemeChange);
+      window.removeEventListener("profileChange", handleProfileChange);
       document.removeEventListener("click", handleClickOutside);
     };
   }, []);
@@ -221,20 +312,29 @@ export default function Header() {
                       : "hover:bg-gray-100 text-black"
                   }`}
                 >
+                  {" "}
                   {/* Avatar */}
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#febc2e] rounded-full flex items-center justify-center">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
-                      <div className="absolute top-1 left-1 w-1 h-1 bg-[#7C3605] rounded-full"></div>
-                      <div className="absolute top-1 right-1 w-1 h-1 bg-[#7C3605] rounded-full"></div>
-                      <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-[#7C3605] rounded-full"></div>
-                    </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#febc2e] rounded-full relative overflow-hidden">
+                    {userProfile.avatarURL ? (
+                      <img
+                        src={userProfile.avatarURL}
+                        alt="User Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
+                          <div className="absolute top-1 left-1 w-1 h-1 bg-[#7C3605] rounded-full"></div>
+                          <div className="absolute top-1 right-1 w-1 h-1 bg-[#7C3605] rounded-full"></div>
+                          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-[#7C3605] rounded-full"></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
                   {/* Name - Hidden on mobile */}
                   <span className="hidden sm:block font-medium font-['Montserrat'] text-sm lg:text-base">
-                    Evan
+                    {getDisplayName()}
                   </span>
-
                   {/* Dropdown Arrow */}
                   <svg
                     className={`w-4 h-4 transition-transform duration-200 ${
@@ -268,21 +368,33 @@ export default function Header() {
                         theme === "dark" ? "border-gray-700" : "border-gray-200"
                       }`}
                     >
+                      {" "}
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-[#febc2e] rounded-full flex items-center justify-center">
-                          <div className="w-10 h-10 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
-                            <div className="absolute top-2 left-2 w-1.5 h-1.5 bg-[#7C3605] rounded-full"></div>
-                            <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#7C3605] rounded-full"></div>
-                            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-3 h-1.5 bg-[#7C3605] rounded-full"></div>
-                          </div>
+                        <div className="w-12 h-12 bg-[#febc2e] rounded-full relative overflow-hidden">
+                          {userProfile.avatarURL ? (
+                            <img
+                              src={userProfile.avatarURL}
+                              alt="User Avatar"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-10 h-10 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
+                                <div className="absolute top-2 left-2 w-1.5 h-1.5 bg-[#7C3605] rounded-full"></div>
+                                <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#7C3605] rounded-full"></div>
+                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-3 h-1.5 bg-[#7C3605] rounded-full"></div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div>
+                          {" "}
                           <h3
                             className={`font-semibold font-['Montserrat'] ${
                               theme === "dark" ? "text-white" : "text-black"
                             }`}
                           >
-                            Evan Puertorico
+                            {getDisplayName(true)}
                           </h3>
                           <p
                             className={`text-sm ${
@@ -291,7 +403,7 @@ export default function Header() {
                                 : "text-gray-600"
                             }`}
                           >
-                            Premium User
+                            {userProfile.email || "No email set"}
                           </p>
                         </div>
                       </div>

@@ -26,7 +26,8 @@ export default function RootLayout({ children }) {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/tnc" ||
-    pathname === "/verify-success";
+    pathname.startsWith("/email-handler/reset-password") ||
+    pathname.startsWith("/email-handler/verify-email");
 
   useEffect(() => {
     // Apply theme immediately saat component mount

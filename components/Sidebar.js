@@ -17,6 +17,13 @@ export default function Sidebar({
   addCustomFilter,
   addPredefinedFilter,
   showCustomInput,
+  userProfile = {
+    firstName: "Todoriko",
+    lastName: "",
+    email: "user@todoapp.com",
+    avatarURL: null,
+  },
+  updateProfile = () => {},
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,6 +38,25 @@ export default function Sidebar({
     } else {
       router.push(path);
     }
+  }; // Generate display name from profile
+  const getDisplayName = () => {
+    if (userProfile.firstName && userProfile.lastName) {
+      return `${userProfile.firstName} ${userProfile.lastName}`;
+    } else if (userProfile.firstName) {
+      return userProfile.firstName;
+    } else if (userProfile.email) {
+      return userProfile.email.split("@")[0]; // Use email prefix if no name
+    }
+    return "User"; // Fallback
+  };
+
+  // Generate subtitle (could be email or custom subtitle)
+  const getSubtitle = () => {
+    // Always show email if available, otherwise show fallback
+    if (userProfile.email) {
+      return userProfile.email;
+    }
+    return "No email set"; // Fallback
   };
 
   return (
@@ -38,26 +64,35 @@ export default function Sidebar({
       {/* Profile Section */}
       <div className="text-center lg:text-left">
         <div className="flex flex-col items-center lg:items-start">
+          {" "}
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-4">
             <div className="w-full h-full bg-[#febc2e] rounded-full relative overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
-                  <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#7C3605] rounded-full"></div>
-                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#7C3605] rounded-full"></div>
-                  <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2 w-3 h-1.5 sm:w-4 sm:h-2 bg-[#7C3605] rounded-full"></div>
+              {userProfile.avatarURL ? (
+                <img
+                  src={userProfile.avatarURL}
+                  alt="User Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-b from-[#FDA894] to-[#F49074] rounded-full relative">
+                    <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#7C3605] rounded-full"></div>
+                    <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#7C3605] rounded-full"></div>
+                    <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2 w-3 h-1.5 sm:w-4 sm:h-2 bg-[#7C3605] rounded-full"></div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          </div>
+          </div>{" "}
           <h2
             className={`text-lg sm:text-xl font-semibold font-['Montserrat'] mb-1 transition-colors duration-300 ${
               theme === "dark" ? "text-white" : "text-black"
             }`}
           >
-            Todoriko
+            {getDisplayName()}
           </h2>
           <p className="text-[#febc2e] text-xs sm:text-sm font-normal font-['Montserrat']">
-            Evan Puertorico
+            {getSubtitle()}
           </p>
         </div>
       </div>

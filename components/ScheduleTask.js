@@ -3,6 +3,20 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import { auth, db } from "@/lib/Firebase";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function ScheduleTask() {
   const [theme, setTheme] = useState("light");
@@ -13,6 +27,17 @@ export default function ScheduleTask() {
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    avatarURL: null,
+  });
+
+  // Di bagian atas component, tambahkan flag
+  const USE_FIREBASE = false; // Set false untuk testing
 
   // Available colors array (same as Dashboard)
   const availableColors = [
@@ -43,19 +68,103 @@ export default function ScheduleTask() {
     "#DC143C",
   ];
 
-  // Tambahkan state untuk categories (sama seperti Dashboard)
+  // Update state untuk categories
   const [taskCategories, setTaskCategories] = useState([
-    { name: "Personal", color: "#FF5F57", isDefault: false },
-    { name: "Freelance", color: "#FEBC2E", isDefault: false },
-    { name: "Work", color: "#28C840", isDefault: false },
+    {
+      id: "default-personal",
+      name: "Personal",
+      color: "#FF5F57",
+      isDefault: true,
+    },
+    {
+      id: "default-freelance",
+      name: "Freelance",
+      color: "#FEBC2E",
+      isDefault: true,
+    },
+    { id: "default-work", name: "Work", color: "#28C840", isDefault: true },
   ]);
 
-  // Save categories to localStorage whenever they change
+  // Authentication listener
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem("taskCategories", JSON.stringify(taskCategories));
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE - Load profile from localStorage
+      try {
+        const savedProfile = localStorage.getItem("userProfile");
+        if (savedProfile) {
+          const profileData = JSON.parse(savedProfile);
+          setUserProfile(profileData);
+          console.log("Loaded profile in ScheduleTask:", profileData);
+        } else {
+          // Set default profile if none exists
+          const defaultProfile = {
+            firstName: "Todoriko",
+            lastName: "",
+            email: "user@todoapp.com",
+            avatarURL: null,
+          };
+          setUserProfile(defaultProfile);
+          localStorage.setItem("userProfile", JSON.stringify(defaultProfile));
+        }
+      } catch (error) {
+        console.error("Error loading profile in ScheduleTask:", error);
+        const fallbackProfile = {
+          firstName: "Todoriko",
+          lastName: "",
+          email: "user@todoapp.com",
+          avatarURL: null,
+        };
+        setUserProfile(fallbackProfile);
+      }
+
+      // Skip Firebase, langsung set dummy user
+      setCurrentUser({ uid: "test", email: "test@test.com" });
+      setLoading(false);
+      return;
     }
-  }, [taskCategories, mounted]);
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+        loadUserCategories(user.uid);
+      } else {
+        setCurrentUser(null);
+        setLoading(false);
+        router.push("/login");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  // Load user categories from Firestore
+  const loadUserCategories = async (userId) => {
+    try {
+      setLoading(true);
+
+      const categoriesQuery = query(
+        collection(db, "categories"),
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+
+      const categoriesSnapshot = await getDocs(categoriesQuery);
+      const userCategories = categoriesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      if (userCategories.length > 0) {
+        setTaskCategories(userCategories);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      showToast("Error loading categories", "error");
+      setLoading(false);
+    }
+  };
 
   const getMonthName = (monthIndex) => {
     const months = [
@@ -132,29 +241,64 @@ export default function ScheduleTask() {
       setToast({ show: false, message: "", type: "error" });
     }, 3000);
   };
-
-  const removeFilter = (categoryName) => {
+  // Updated to delete from localStorage or Firestore
+  const removeFilter = async (categoryName) => {
     const categoryToRemove = taskCategories.find(
       (cat) => cat.name.toLowerCase() === categoryName.toLowerCase()
     );
 
-    if (categoryToRemove && !categoryToRemove.isDefault) {
+    if (!categoryToRemove) {
+      showToast("Category not found!", "error");
+      return;
+    }
+
+    if (categoryToRemove.isDefault) {
+      showToast("Cannot remove default categories!", "error");
+      return;
+    }
+
+    if (!USE_FIREBASE) {
+      // LOCAL STORAGE MODE
+      try {
+        setTaskCategories((prev) =>
+          prev.filter((cat) => cat.id !== categoryToRemove.id)
+        );
+
+        if (selectedCategory && selectedCategory.id === categoryToRemove.id) {
+          setSelectedCategory(null);
+          setCategoryInput("");
+        }
+
+        showToast(
+          `Category "${categoryName}" removed successfully!`,
+          "success"
+        );
+      } catch (error) {
+        console.error("Error removing category:", error);
+        showToast("Error removing category", "error");
+      }
+      return;
+    }
+
+    // FIREBASE MODE
+    if (!currentUser) return;
+
+    try {
+      await deleteDoc(doc(db, "categories", categoryToRemove.id));
+
       setTaskCategories((prev) =>
-        prev.filter(
-          (cat) => cat.name.toLowerCase() !== categoryName.toLowerCase()
-        )
+        prev.filter((cat) => cat.id !== categoryToRemove.id)
       );
 
-      if (
-        selectedCategory &&
-        selectedCategory.name.toLowerCase() === categoryName.toLowerCase()
-      ) {
+      if (selectedCategory && selectedCategory.id === categoryToRemove.id) {
         setSelectedCategory(null);
+        setCategoryInput("");
       }
 
       showToast(`Category "${categoryName}" removed successfully!`, "success");
-    } else {
-      showToast("Cannot remove this category!", "error");
+    } catch (error) {
+      console.error("Error removing category:", error);
+      showToast("Error removing category", "error");
     }
   };
 
@@ -163,30 +307,39 @@ export default function ScheduleTask() {
     const timeString = `${selectedHour}:${selectedMinute} ${selectedAmPm}`;
     setSelectedTime(timeString);
   }, [selectedHour, selectedMinute, selectedAmPm]);
-
   useEffect(() => {
     setMounted(true);
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
 
-    // Load categories from localStorage if available
-    const savedCategories = localStorage.getItem("taskCategories");
-    if (savedCategories) {
-      setTaskCategories(JSON.parse(savedCategories));
-    }
-
     const handleThemeChange = (event) => {
       setTheme(event.detail.theme);
     };
 
+    // Listen for profile changes from other components
+    const handleProfileChange = (event) => {
+      if (event.detail && event.detail.profile) {
+        setUserProfile(event.detail.profile);
+        console.log(
+          "Profile updated from event in ScheduleTask:",
+          event.detail.profile
+        );
+      }
+    };
+
     window.addEventListener("themeChange", handleThemeChange);
+    window.addEventListener("profileChange", handleProfileChange);
+
     return () => {
       window.removeEventListener("themeChange", handleThemeChange);
+      window.removeEventListener("profileChange", handleProfileChange);
     };
   }, []);
 
-  // Updated functions to match Dashboard exactly
-  const addPredefinedCategory = (name, color) => {
+  // Updated functions to save to Firestore
+  const addPredefinedCategory = async (name, color) => {
+    if (!currentUser) return;
+
     const existingCategory = taskCategories.find(
       (cat) => cat.name.toLowerCase() === name.toLowerCase()
     );
@@ -196,18 +349,29 @@ export default function ScheduleTask() {
       return;
     }
 
-    const newCategory = {
-      name: name,
-      color: color,
-      isDefault: false,
-    };
+    try {
+      const newCategory = {
+        name: name,
+        color: color,
+        isDefault: false,
+        userId: currentUser.uid,
+        createdAt: new Date(),
+      };
 
-    setTaskCategories((prev) => [...prev, newCategory]);
-    setShowAddCategoryModal(false);
-    showToast(`Category "${name}" added successfully!`, "success");
+      const docRef = await addDoc(collection(db, "categories"), newCategory);
+
+      setTaskCategories((prev) => [...prev, { id: docRef.id, ...newCategory }]);
+      setShowAddFilterModal(false);
+      showToast(`Category "${name}" added successfully!`, "success");
+    } catch (error) {
+      console.error("Error adding category:", error);
+      showToast("Error adding category", "error");
+    }
   };
 
-  const addCustomCategory = () => {
+  const addCustomCategory = async () => {
+    if (!currentUser) return;
+
     const trimmedName = newCategoryName.trim();
 
     if (!trimmedName) {
@@ -225,17 +389,26 @@ export default function ScheduleTask() {
       return;
     }
 
-    const newCategory = {
-      name: trimmedName,
-      color: getAvailableColor(),
-      isDefault: false,
-    };
+    try {
+      const newCategory = {
+        name: trimmedName,
+        color: getAvailableColor(),
+        isDefault: false,
+        userId: currentUser.uid,
+        createdAt: new Date(),
+      };
 
-    setTaskCategories((prev) => [...prev, newCategory]);
-    setNewCategoryName("");
-    setShowCustomInput(false);
-    setShowAddCategoryModal(false);
-    showToast(`Category "${trimmedName}" created successfully!`, "success");
+      const docRef = await addDoc(collection(db, "categories"), newCategory);
+
+      setTaskCategories((prev) => [...prev, { id: docRef.id, ...newCategory }]);
+      setNewCategoryName("");
+      setShowCustomInput(false);
+      setShowAddFilterModal(false);
+      showToast(`Category "${trimmedName}" created successfully!`, "success");
+    } catch (error) {
+      console.error("Error creating category:", error);
+      showToast("Error creating category", "error");
+    }
   };
 
   // Legacy functions for backward compatibility
@@ -261,7 +434,7 @@ export default function ScheduleTask() {
     router.push(path);
   };
 
-  // Calendar functions
+  // Calendar functions - keep existing
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [calendarView, setCalendarView] = useState("days");
@@ -340,46 +513,89 @@ export default function ScheduleTask() {
     setCalendarView("months");
   };
 
-  const handleSaveTask = () => {
+  // Updated to save task to Firestore
+  const handleSaveTask = async () => {
     console.log("Save task clicked");
 
-    if (!taskInput.trim()) {
-      showToast("Please enter a task title!", "error");
+    if (!USE_FIREBASE) {
+      // Local storage save untuk testing
+      if (!taskInput.trim()) {
+        showToast("Please enter a task title!", "error");
+        return;
+      }
+
+      if (!selectedCategory) {
+        showToast("Please select a category!", "error");
+        return;
+      }
+
+      if (!selectedDate) {
+        showToast("Please select a date!", "error");
+        return;
+      }
+
+      if (!selectedTime) {
+        showToast("Please select a time!", "error");
+        return;
+      } // Save to localStorage with user-specific key
+      const newTask = {
+        id: Date.now(),
+        title: taskInput.trim(),
+        description: taskDescription.trim(),
+        category: selectedCategory.name,
+        date: formatDisplayDate(selectedDate),
+        sortDate: selectedDate,
+        time: selectedTime,
+        completed: false,
+      };
+
+      // Use user email to create user-specific task storage
+      const userEmail = localStorage.getItem("userEmail") || "default";
+      const taskKey = `tasks_${userEmail}`;
+      const existingTasks = JSON.parse(localStorage.getItem(taskKey) || "[]");
+      localStorage.setItem(
+        taskKey,
+        JSON.stringify([...existingTasks, newTask])
+      );
+
+      showToast("Task saved successfully!", "success");
+
+      setTimeout(() => {
+        // Clear form
+        setTaskInput("");
+        setTaskDescription("");
+        setSelectedCategory(null);
+        setCategoryInput("");
+        setSelectedDate(null);
+        setSelectedTime("");
+        setSelectedHour("12");
+        setSelectedMinute("00");
+        setSelectedAmPm("AM");
+
+        router.push("/dashboard");
+      }, 1500);
+
       return;
     }
 
-    if (!selectedCategory) {
-      showToast("Please select a category!", "error");
-      return;
-    }
-
-    if (!selectedDate) {
-      showToast("Please select a date!", "error");
-      return;
-    }
-
-    if (!selectedTime) {
-      showToast("Please select a time!", "error");
-      return;
-    }
-
-    showToast("Task saved successfully!", "success");
-
-    setTimeout(() => {
-      setTaskInput("");
-      setTaskDescription("");
-      setSelectedCategory(null);
-      setCategoryInput("");
-      setSelectedDate(null);
-      setSelectedTime("");
-      setSelectedHour("12");
-      setSelectedMinute("00");
-      setSelectedAmPm("AM");
-      router.push("/dashboard");
-    }, 1500);
+    // Firebase save code here...
   };
 
-  if (!mounted || theme === null) {
+  // Tambahkan useEffect untuk handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCalendar && !event.target.closest(".calendar-container")) {
+        setShowCalendar(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showCalendar]);
+
+  if (!mounted || loading) {
     return (
       <div
         className={`w-full h-screen flex items-center justify-center ${
@@ -400,6 +616,11 @@ export default function ScheduleTask() {
     );
   }
 
+  if (!currentUser) {
+    return null;
+  }
+
+  // Keep all existing JSX structure
   return (
     <div
       className={`min-h-screen transition-colors duration-300 ${
@@ -409,7 +630,7 @@ export default function ScheduleTask() {
       {" "}
       <div className="flex flex-col lg:flex-row gap-4 px-4 sm:px-6 md:px-8 lg:px-24 xl:px-32">
         {/* Sidebar */}
-        {/* Sidebar */}
+        {/* Sidebar */}{" "}
         <Sidebar
           theme={theme}
           onThemeChange={(newTheme) => {
@@ -427,6 +648,7 @@ export default function ScheduleTask() {
           addPredefinedFilter={addPredefinedFilter}
           removeFilter={removeFilter}
           showCustomInput={showCustomInput}
+          userProfile={userProfile}
         ></Sidebar>
         {/* Main Content */}
         <main className="flex-1 space-y-6 sm:space-y-8 pt-2 sm:pt-4 lg:pt-8">
@@ -629,16 +851,215 @@ export default function ScheduleTask() {
                       </span>
                     </button>
 
-                    {/* Keep existing calendar modal */}
+                    {/* Calendar Modal - Lengkap dengan content */}
                     {showCalendar && (
                       <div
-                        className={`absolute top-full left-0 mt-1 z-50 rounded-lg shadow-xl p-3 w-72 sm:w-80 border-2 ${
+                        className={`calendar-container absolute top-full left-0 mt-1 z-50 rounded-lg shadow-xl p-3 w-72 sm:w-80 border-2 ${
                           theme === "dark"
                             ? "bg-[#1E1E1E] border-gray-500"
                             : "bg-white border-gray-400"
                         }`}
                       >
-                        {/* Keep all existing calendar content */}
+                        {/* Header Navigation */}
+                        <div className="flex items-center justify-between mb-4">
+                          <button
+                            onClick={() => navigateMonth("prev")}
+                            className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              theme === "dark" ? "text-white" : "text-black"
+                            }`}
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => setCalendarView("months")}
+                              className={`text-sm font-semibold hover:text-[#FEBC2E] transition-colors ${
+                                theme === "dark" ? "text-white" : "text-black"
+                              }`}
+                            >
+                              {getMonthName(currentMonth)}
+                            </button>
+                            <button
+                              onClick={() => setCalendarView("years")}
+                              className={`text-sm font-semibold hover:text-[#FEBC2E] transition-colors ${
+                                theme === "dark" ? "text-white" : "text-black"
+                              }`}
+                            >
+                              {currentYear}
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => navigateMonth("next")}
+                            className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              theme === "dark" ? "text-white" : "text-black"
+                            }`}
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+
+                        {/* Calendar Views */}
+                        {calendarView === "days" && (
+                          <>
+                            {/* Days of Week Header */}
+                            <div className="grid grid-cols-7 gap-1 mb-2">
+                              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
+                                (day) => (
+                                  <div
+                                    key={day}
+                                    className={`text-xs text-center py-2 font-semibold ${
+                                      theme === "dark"
+                                        ? "text-gray-400"
+                                        : "text-gray-500"
+                                    }`}
+                                  >
+                                    {day}
+                                  </div>
+                                )
+                              )}
+                            </div>
+
+                            {/* Calendar Days */}
+                            <div className="grid grid-cols-7 gap-1">
+                              {generateCalendarDays().map((date, index) => {
+                                if (!date) {
+                                  return (
+                                    <div key={index} className="p-2"></div>
+                                  );
+                                }
+
+                                const dateStr = formatDate(date);
+                                const isSelected = selectedDate === dateStr;
+                                const isToday =
+                                  dateStr === formatDate(new Date());
+                                const isPast =
+                                  date < new Date().setHours(0, 0, 0, 0);
+
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => {
+                                      setSelectedDate(dateStr);
+                                      setShowCalendar(false);
+                                    }}
+                                    className={`p-2 text-xs rounded hover:bg-[#FEBC2E] hover:text-white transition-colors ${
+                                      isSelected
+                                        ? "bg-[#FEBC2E] text-white font-semibold"
+                                        : isToday
+                                        ? "bg-blue-100 text-blue-600 font-semibold"
+                                        : isPast
+                                        ? "text-gray-400 cursor-not-allowed"
+                                        : theme === "dark"
+                                        ? "text-white hover:bg-[#FEBC2E]"
+                                        : "text-black hover:bg-[#FEBC2E]"
+                                    }`}
+                                    disabled={isPast}
+                                  >
+                                    {date.getDate()}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+
+                        {/* Month View */}
+                        {calendarView === "months" && (
+                          <div className="grid grid-cols-3 gap-2">
+                            {generateMonths().map((month, index) => (
+                              <button
+                                key={month}
+                                onClick={() => handleMonthSelect(index)}
+                                className={`p-2 text-xs rounded hover:bg-[#FEBC2E] hover:text-white transition-colors ${
+                                  index === currentMonth
+                                    ? "bg-[#FEBC2E] text-white font-semibold"
+                                    : theme === "dark"
+                                    ? "text-white"
+                                    : "text-black"
+                                }`}
+                              >
+                                {month.slice(0, 3)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Year View */}
+                        {calendarView === "years" && (
+                          <div className="grid grid-cols-3 gap-2">
+                            {generateYears().map((year) => (
+                              <button
+                                key={year}
+                                onClick={() => handleYearSelect(year)}
+                                className={`p-2 text-xs rounded hover:bg-[#FEBC2E] hover:text-white transition-colors ${
+                                  year === currentYear
+                                    ? "bg-[#FEBC2E] text-white font-semibold"
+                                    : theme === "dark"
+                                    ? "text-white"
+                                    : "text-black"
+                                }`}
+                              >
+                                {year}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          <div className="flex justify-between items-center">
+                            <button
+                              onClick={() => {
+                                setSelectedDate(formatDate(new Date()));
+                                setShowCalendar(false);
+                              }}
+                              className="text-xs text-[#FEBC2E] hover:text-[#E5A627] font-medium transition-colors"
+                            >
+                              Today
+                            </button>
+                            {selectedDate && (
+                              <button
+                                onClick={() => {
+                                  setSelectedDate(null);
+                                  setShowCalendar(false);
+                                }}
+                                className={`text-xs font-medium transition-colors ${
+                                  theme === "dark"
+                                    ? "text-gray-400 hover:text-white"
+                                    : "text-gray-500 hover:text-black"
+                                }`}
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

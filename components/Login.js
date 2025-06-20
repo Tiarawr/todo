@@ -109,8 +109,32 @@ export default function Login() {
           `📧 Email verified after refresh ${i + 1}:`,
           refreshedUser?.emailVerified
         );
-
         if (refreshedUser?.emailVerified) {
+          // Save user email to localStorage for Settings page
+          localStorage.setItem("userEmail", refreshedUser.email);
+          console.log(
+            "💾 Saved user email to localStorage:",
+            refreshedUser.email
+          );
+
+          // Save initial profile from Firebase data
+          const displayName = refreshedUser.displayName || "";
+          const [firstName, ...lastNameParts] = displayName.split(" ");
+          const lastName = lastNameParts.join(" ");
+
+          const initialProfile = {
+            firstName: firstName || "",
+            lastName: lastName || "",
+            email: refreshedUser.email,
+            avatarURL: refreshedUser.photoURL || null,
+          };
+
+          localStorage.setItem("userProfile", JSON.stringify(initialProfile));
+          console.log(
+            "💾 Saved login profile to localStorage:",
+            initialProfile
+          );
+
           router.push("/dashboard");
           return;
         }
@@ -134,7 +158,32 @@ export default function Login() {
     setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      // Save user email to localStorage for Settings page
+      localStorage.setItem("userEmail", result.user.email);
+      console.log(
+        "💾 Saved Google user email to localStorage:",
+        result.user.email
+      );
+
+      // Save initial profile from Google data
+      const displayName = result.user.displayName || "";
+      const [firstName, ...lastNameParts] = displayName.split(" ");
+      const lastName = lastNameParts.join(" ");
+
+      const initialProfile = {
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: result.user.email,
+        avatarURL: result.user.photoURL || null,
+      };
+
+      localStorage.setItem("userProfile", JSON.stringify(initialProfile));
+      console.log(
+        "💾 Saved Google login profile to localStorage:",
+        initialProfile
+      );
+
       router.push("/dashboard");
     } catch (error) {
       console.error("Google login error:", error);
@@ -172,11 +221,16 @@ export default function Login() {
     setShowForgotModal(true);
     setIsEmailSent(false);
   };
-
   const handleSendResetEmail = async () => {
     if (forgotEmail) {
       try {
-        await sendPasswordResetEmail(auth, forgotEmail);
+        // Configure action code settings for password reset
+        const actionCodeSettings = {
+          url: "https://todoriko.xyz/forgot-password", // Redirect to forgot-password page
+          handleCodeInApp: false,
+        };
+
+        await sendPasswordResetEmail(auth, forgotEmail, actionCodeSettings);
         setMaskedForgotEmail(maskEmail(forgotEmail));
         setIsEmailSent(true);
       } catch (error) {

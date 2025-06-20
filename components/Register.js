@@ -10,6 +10,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/Firebase";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
 export default function Register() {
   const [theme, setTheme] = useState(null);
@@ -56,13 +57,33 @@ export default function Register() {
   }, []);
 
   const actionCodeSettings = {
-    url: "https://auth.todoriko.xyz/verify-success",
+    url: "https://todoriko.xyz/verify-success",
     handleCodeInApp: false,
   };
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider); // Save user email to localStorage for Settings page
+      localStorage.setItem("userEmail", result.user.email);
+      console.log(
+        "💾 Saved Google user email to localStorage:",
+        result.user.email
+      );
+
+      // Save initial profile from Google data
+      const displayName = result.user.displayName || "";
+      const [firstName, ...lastNameParts] = displayName.split(" ");
+      const lastName = lastNameParts.join(" ");
+
+      const initialProfile = {
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: result.user.email,
+        avatarURL: result.user.photoURL || null,
+      };
+
+      localStorage.setItem("userProfile", JSON.stringify(initialProfile));
+      console.log("💾 Saved Google profile to localStorage:", initialProfile);
       router.push("/dashboard");
     } catch (error) {
       showToast(error.message || "Google login failed", "error");
@@ -137,15 +158,33 @@ export default function Register() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email))
       return showToast("Please enter a valid email address!", "error");
-
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
-      await sendEmailVerification(userCredential.user, actionCodeSettings);
+      await axios.post("/api/sendVerification", {
+        email,
+        fullName,
+      });
       await signOut(auth);
+      localStorage.setItem("userEmail", email);
+      console.log("💾 Saved registered user email to localStorage:", email);
+
+      // Save initial profile with full name
+      const [firstName, ...lastNameParts] = fullName.trim().split(" ");
+      const lastName = lastNameParts.join(" ");
+
+      const initialProfile = {
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: email,
+        avatarURL: null,
+      };
+
+      localStorage.setItem("userProfile", JSON.stringify(initialProfile));
+      console.log("💾 Saved initial profile to localStorage:", initialProfile);
 
       setMaskedEmail(maskEmail(email));
       setShowModal(true);
