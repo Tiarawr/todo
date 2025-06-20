@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/Firebase";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { setPersistence, browserLocalPersistence } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  signOut,
+} from "firebase/auth";
 
 export default function Login() {
   const [toast, setToast] = useState({
@@ -80,12 +84,8 @@ export default function Login() {
   };
 
   const handleLoginClick = async () => {
-    if (!email || !password) {
-      showToast("Email and password are required.");
-      return;
-    }
-
     setIsLoggingIn(true);
+    console.log("🔐 Starting login process...");
 
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -93,31 +93,44 @@ export default function Login() {
         email,
         password
       );
-
-      // 🔁 Force refresh token & status
-      await userCredential.user.reload();
-      const refreshedUser = auth.currentUser;
-
+      console.log("✅ Sign in successful");
       console.log(
-        "🔑 refreshedUser.emailVerified:",
-        refreshedUser.emailVerified
+        "📧 Email verified before reload:",
+        userCredential.user.emailVerified
       );
 
-      if (!refreshedUser.emailVerified) {
-        showToast("Please verify your email before logging in.", "warning");
-        setIsLoggingIn(false);
-        return;
+      // Multiple refresh attempts
+      for (let i = 0; i < 3; i++) {
+        await userCredential.user.getIdToken(true);
+        await userCredential.user.reload();
+
+        const refreshedUser = auth.currentUser;
+        console.log(
+          `📧 Email verified after refresh ${i + 1}:`,
+          refreshedUser?.emailVerified
+        );
+
+        if (refreshedUser?.emailVerified) {
+          router.push("/dashboard");
+          return;
+        }
+
+        if (i < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
       }
 
-      router.push("/dashboard");
+      showToast("Please verify your email before logging in.", "warning");
+      await signOut(auth);
     } catch (error) {
       showToast(error.message);
-      console.error("Login error:", error);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    if (isLoggingIn) return; // cegah double click
+    if (isLoggingIn) return;
     setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
     try {

@@ -6,6 +6,7 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
 } from "firebase/auth";
 import { auth } from "@/lib/Firebase";
 import { useRouter } from "next/navigation";
@@ -55,7 +56,7 @@ export default function Register() {
   }, []);
 
   const actionCodeSettings = {
-    url: "https://auth.todoriko.xyz/verify-success", // atau halaman hasil verifikasi kamu sendiri
+    url: "https://auth.todoriko.xyz/verify-success",
     handleCodeInApp: false,
   };
   const handleGoogleLogin = async () => {
@@ -144,6 +145,7 @@ export default function Register() {
         password
       );
       await sendEmailVerification(userCredential.user, actionCodeSettings);
+      await signOut(auth);
 
       setMaskedEmail(maskEmail(email));
       setShowModal(true);
