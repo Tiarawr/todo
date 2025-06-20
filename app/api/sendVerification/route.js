@@ -1,4 +1,3 @@
-import admin from "@/lib/firebaseAdmin";
 import nodemailer from "nodemailer";
 
 export async function POST(req) {
@@ -16,10 +15,25 @@ export async function POST(req) {
       );
     }
 
+    // Dynamically import Firebase Admin to avoid build-time initialization
+    const { default: getFirebaseAdmin } = await import("@/lib/firebaseAdmin");
+    const admin = getFirebaseAdmin();
+    
+    if (!admin) {
+      return new Response(
+        JSON.stringify({ error: "Firebase service unavailable" }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const link = await admin.auth().generateEmailVerificationLink(email, {
       url: "https://todoriko.xyz/email-handler/send-verification",
       handleCodeInApp: true,
-    });    const transporter = nodemailer.createTransport({
+    });
+    const transporter = nodemailer.createTransport({
       host: "smtp-relay.brevo.com",
       port: 587,
       auth: {
@@ -144,23 +158,29 @@ export async function POST(req) {
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
-    });  } catch (err) {
+    });
+  } catch (err) {
     console.error("Email send failed:", err);
-    
+
     // Provide more specific error messages for common issues
     let errorMessage = err.message;
     if (err.message.includes("Firebase")) {
-      errorMessage = "Firebase configuration error. Check your environment variables.";
+      errorMessage =
+        "Firebase configuration error. Check your environment variables.";
     } else if (err.message.includes("SMTP") || err.message.includes("Email")) {
-      errorMessage = "Email service configuration error. Check your email credentials.";
+      errorMessage =
+        "Email service configuration error. Check your email credentials.";
     }
-    
-    return new Response(JSON.stringify({ 
-      error: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined 
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+
+    return new Response(
+      JSON.stringify({
+        error: errorMessage,
+        details: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
