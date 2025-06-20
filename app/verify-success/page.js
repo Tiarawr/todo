@@ -10,7 +10,6 @@ export default function VerifySuccessPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const auth = getAuth();
     signOut(auth);
 
     const timer = setTimeout(() => {
