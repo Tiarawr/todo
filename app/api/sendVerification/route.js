@@ -30,7 +30,7 @@ export async function POST(req) {
     }
 
     const link = await admin.auth().generateEmailVerificationLink(email, {
-      url: "https://todoriko.xyz/email-handler",
+      url: "https://todoriko.xyz/email-handler/send-verification",
       handleCodeInApp: true,
     });
     const transporter = nodemailer.createTransport({
