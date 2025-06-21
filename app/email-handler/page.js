@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import EmailActionHandler from "./EmailActionHandler";
-
+import EmailActionHandler from "@/app/email-handler/EmailActionHandler";
 export default function EmailHandlerPage() {
   return (
     <Suspense
