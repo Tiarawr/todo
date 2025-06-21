@@ -182,5 +182,7 @@ export async function POST(req) {
         headers: { "Content-Type": "application/json" },
       }
     );
+    console.log("✅ BREVO_USER:", process.env.BREVO_USER);
+    console.log("✅ BREVO_PASS exists:", !!process.env.BREVO_PASS);
   }
 }
