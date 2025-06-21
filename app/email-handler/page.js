@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import EmailActionHandler from "@/app/email-handler/EmailActionHandler";
+import EmailActionHandler from "@/app/email-handler/EmailVerificationClient";
 export default function EmailHandlerPage() {
   return (
     <Suspense
