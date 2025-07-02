@@ -1,11 +1,6 @@
-"use client";
-
 import "./globals.css";
 import { Montserrat, Poppins } from "next/font/google";
-import Header from "../components/Header";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
-import Head from "next/head";
+import ClientLayout from "./ClientLayout";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -19,55 +14,78 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
+export const metadata = {
+  title: {
+    default: "TodoRiko - Smart Todo List & Task Management App",
+    template: "%s | TodoRiko",
+  },
+  description:
+    "TodoRiko is a powerful and intuitive todo list and task management application. Organize your tasks, boost productivity, and never miss a deadline with our smart scheduling features.",
+  keywords:
+    "todo list, task management, productivity app, todo app, task organizer, schedule planner, TodoRiko",
+  authors: [{ name: "TodoRiko Team" }],
+  creator: "TodoRiko",
+  publisher: "TodoRiko",
+  metadataBase: new URL("https://todoriko.xyz"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "TodoRiko - Smart Todo List & Task Management App",
+    description:
+      "Organize your tasks, boost productivity, and never miss a deadline with TodoRiko's smart scheduling features.",
+    url: "https://todoriko.xyz",
+    siteName: "TodoRiko",
+    images: [
+      {
+        url: "/todorik.svg",
+        width: 800,
+        height: 600,
+        alt: "TodoRiko Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TodoRiko - Smart Todo List & Task Management App",
+    description:
+      "Organize your tasks, boost productivity, and never miss a deadline with TodoRiko's smart scheduling features.",
+    creator: "@todoriko",
+    images: ["/todorik.svg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: "/todorik.svg",
+    shortcut: "/todorik.svg",
+    apple: "/todorik.svg",
+  },
+  manifest: "/manifest.json",
+  themeColor: "#f67011",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
+};
+
 export default function RootLayout({ children }) {
-  const pathname = usePathname();
-
-  const isAuthPage =
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/tnc" ||
-    pathname.startsWith("/email-handler/reset-password") ||
-    pathname.startsWith("/email-handler/verify-email");
-
-  useEffect(() => {
-    // Apply theme immediately saat component mount
-    const applyTheme = () => {
-      if (typeof window !== "undefined") {
-        const savedTheme = localStorage.getItem("theme") || "light";
-        const body = document.body;
-
-        // Remove existing theme classes
-        body.classList.remove(
-          "bg-white",
-          "bg-[#1E1E1E]",
-          "text-black",
-          "text-white"
-        );
-
-        if (savedTheme === "dark") {
-          body.classList.add("bg-[#1E1E1E]", "text-white");
-        } else {
-          body.classList.add("bg-white", "text-black");
-        }
-      }
-    };
-
-    applyTheme();
-  }, []);
-
   return (
     <html lang="en">
-      <Head>
-        <link rel="icon" href="/todorik.svg" type="image/svg+xml" />
-        <meta name="theme-color" content="#f67011" />
-        <title>Todoriko</title>
-      </Head>
-      <body
-        className={`${montserrat.variable} ${poppins.variable} transition-colors duration-300`}
-      >
-        {!isAuthPage && <Header />}
-        <main>{children}</main>
-      </body>
+      <ClientLayout montserrat={montserrat} poppins={poppins}>
+        {children}
+      </ClientLayout>
     </html>
   );
 }
