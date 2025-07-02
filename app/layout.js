@@ -22,7 +22,7 @@ export const metadata = {
   description:
     "TodoRiko is a powerful and intuitive todo list and task management application. Organize your tasks, boost productivity, and never miss a deadline with our smart scheduling features.",
   keywords:
-    "todo list, to do list, to-do list, task management, productivity app, todo app, task organizer, schedule planner, TodoRiko, task tracker, daily planner, checklist app, work organizer, project management, time management, personal organizer, productivity tool, task scheduling, reminder app, goal tracker, task list, digital planner, work planning, task reminder, productivity suite, list maker, task manager, organize tasks, daily tasks, work tasks, personal tasks",
+    "todo list, todoriko, to do list, to-do list, task management, productivity app, todo app, task organizer, schedule planner, TodoRiko, task tracker, daily planner, checklist app, work organizer, project management, time management, personal organizer, productivity tool, task scheduling, reminder app, goal tracker, task list, digital planner, work planning, task reminder, productivity suite, list maker, task manager, organize tasks, daily tasks, work tasks, personal tasks",
   authors: [{ name: "TodoRiko Team" }],
   creator: "TodoRiko",
   publisher: "TodoRiko",
