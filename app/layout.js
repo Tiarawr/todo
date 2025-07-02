@@ -16,32 +16,32 @@ const poppins = Poppins({
 
 export const metadata = {
   title: {
-    default: "TodoRiko - Smart Todo List & Task Management App",
-    template: "%s | TodoRiko",
+    default: "Todoriko - Best Todo List & Task Management App",
+    template: "%s | Todoriko",
   },
   description:
-    "TodoRiko is a powerful and intuitive todo list and task management application. Organize your tasks, boost productivity, and never miss a deadline with our smart scheduling features.",
+    "Todoriko is the best todo list and task management app. Organize your daily tasks, boost productivity, and never miss deadlines with Todoriko's smart features. Free todo list app for personal and work use.",
   keywords:
-    "todo list, todoriko, to do list, to-do list, task management, productivity app, todo app, task organizer, schedule planner, TodoRiko, task tracker, daily planner, checklist app, work organizer, project management, time management, personal organizer, productivity tool, task scheduling, reminder app, goal tracker, task list, digital planner, work planning, task reminder, productivity suite, list maker, task manager, organize tasks, daily tasks, work tasks, personal tasks",
-  authors: [{ name: "TodoRiko Team" }],
-  creator: "TodoRiko",
-  publisher: "TodoRiko",
+    "Todoriko, todoriko app, todo list, to do list, to-do list, task management, productivity app, todo app, best todo list app, task organizer, schedule planner, task tracker, daily planner, checklist app, work organizer, project management, time management, personal organizer, productivity tool, task scheduling, reminder app, goal tracker, task list, digital planner, work planning, task reminder, productivity suite, list maker, task manager, organize tasks, daily tasks, work tasks, personal tasks, free todo app",
+  authors: [{ name: "Todoriko Team" }],
+  creator: "Todoriko",
+  publisher: "Todoriko",
   metadataBase: new URL("https://todoriko.xyz"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "TodoRiko - Smart Todo List & Task Management App",
+    title: "Todoriko - Best Todo List & Task Management App",
     description:
-      "Organize your tasks, boost productivity, and never miss a deadline with TodoRiko's smart scheduling features.",
+      "Todoriko is the best todo list and task management app. Organize your daily tasks, boost productivity, and never miss deadlines with Todoriko's smart features.",
     url: "https://todoriko.xyz",
-    siteName: "TodoRiko",
+    siteName: "Todoriko",
     images: [
       {
         url: "/todorik.svg",
         width: 800,
         height: 600,
-        alt: "TodoRiko Logo",
+        alt: "Todoriko Logo",
       },
     ],
     locale: "en_US",
@@ -49,9 +49,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "TodoRiko - Smart Todo List & Task Management App",
+    title: "Todoriko - Best Todo List & Task Management App",
     description:
-      "Organize your tasks, boost productivity, and never miss a deadline with TodoRiko's smart scheduling features.",
+      "Todoriko is the best todo list and task management app. Organize your daily tasks, boost productivity, and never miss deadlines with Todoriko's smart features.",
     creator: "@todoriko",
     images: ["/todorik.svg"],
   },

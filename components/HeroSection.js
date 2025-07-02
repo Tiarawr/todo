@@ -70,8 +70,9 @@ export default function HeroSection() {
                 theme === "dark" ? "text-white" : "text-black"
               } text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-[52px]`}
             >
-              <span className="block sm:inline">Stay Organized.</span>
-              <span className="block sm:inline"> Get Things Done.</span>
+              <span className="block">Welcome to</span>
+              <span className="block text-[#f4721e] mb-2">Todoriko</span>
+              <span className="block text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-[32px] font-medium">Stay Organized. Get Things Done.</span>
             </h1>
 
             {/* Subtitle - Responsive */}
@@ -80,8 +81,7 @@ export default function HeroSection() {
                 theme === "dark" ? "text-white/80" : "text-black/80"
               } text-sm sm:text-base md:text-lg lg:text-xl px-4 sm:px-0`}
             >
-              A simple yet powerful to-do app to help you manage tasks and boost
-              productivity
+              Todoriko is the best todo list app to help you manage tasks, boost productivity, and organize your daily life. Simple, powerful, and free.
             </p>
           </div>
 
